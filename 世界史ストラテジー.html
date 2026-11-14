@@ -1,0 +1,830 @@
+<!doctype html><html lang="ja"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>世界史ストラテジー</title><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: slim command bar, one pannable world map, a briefing panel below. Single dark "war room" look by design. */
+:root{
+  --ink:#0d1c25; --panel:#132832; --line:#2c4856; --text:#dfe7e4; --muted:#93a8ad;
+  --khaki:#d6c88f; --amber:#f0a830; --olive:#8a9a5b; --alert:#e2553b; --sea:#0f2f42;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --f-mono:"Share Tech Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--f-body);font-size:14px;line-height:1.5;
+  display:flex;flex-direction:column;padding-block:6px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  overflow:hidden;-webkit-tap-highlight-color:transparent}
+.hud{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:8px}
+.mark{font-family:var(--f-display);font-size:18px;color:var(--khaki);letter-spacing:.04em}
+.date{font-family:var(--f-mono);font-size:16px;color:var(--amber);letter-spacing:.1em}
+.stats{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 16px;min-width:0}
+.stat{display:flex;align-items:baseline;gap:6px}
+.k{font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.v{font-family:var(--f-mono);font-size:17px;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.btn{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);padding:6px 12px;min-height:36px;border-radius:3px;cursor:pointer;letter-spacing:.04em}
+.btn:hover{border-color:var(--khaki)}
+.btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1b1305;font-weight:700}
+.btn.primary:hover{background:#ffbf4d;border-color:#ffbf4d}
+.btn.war{border-color:var(--alert);color:#ffb4a5}
+.speed{display:flex;gap:3px}.speed .btn{min-width:34px;padding:4px 8px;font-family:var(--f-mono)}.speed .btn.on{background:var(--amber);border-color:var(--amber);color:#1b1305}
+.bar{display:inline-block;width:74px;height:8px;background:#0a1820;border:1px solid var(--line);align-self:center}.bar i{display:block;height:100%;width:0;background:var(--olive)}
+.bt{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.bt .row{display:flex;justify-content:space-between;font-family:var(--f-mono)}.bt .bar{width:100%;height:9px}
+.mapbox{position:relative;flex:1 1 0;min-height:170px;margin-top:8px;border:1px solid var(--line);background:var(--sea);overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.zoom{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:4px}
+.zoom .btn{width:38px;min-height:38px;padding:0;background:rgba(13,28,37,.85);font-size:18px}
+.hint{position:absolute;left:8px;bottom:6px;font-size:11px;color:var(--muted);background:rgba(13,28,37,.7);padding:1px 6px;border-radius:2px;pointer-events:none}
+.panel{flex:0 0 auto;max-height:46%;overflow:auto;margin-top:8px;display:grid;grid-template-columns:1fr;gap:10px 18px}
+@media (min-width:760px){.panel{grid-template-columns:1.25fr 1fr}}
+.info{min-width:0;display:flex;flex-direction:column;gap:6px}
+.info h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:19px;line-height:1.2}
+.meta{display:flex;flex-wrap:wrap;gap:2px 14px;color:var(--muted);font-size:13px}
+.meta b{color:var(--text);font-family:var(--f-mono);font-weight:400;font-size:15px}
+.tag{font-size:12px;padding:0 7px;border-radius:2px;border:1px solid var(--line)}
+.tag.enemy{border-color:var(--alert);color:#ffb4a5}.tag.ally{border-color:var(--olive);color:#c5d79a}.tag.me{border-color:var(--amber);color:var(--amber)}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.tgt{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:6px}
+.side{min-width:0;display:flex;flex-direction:column;gap:8px}.stgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.st{background:#0f2230;padding:3px 8px;border-radius:3px;font-size:11px;color:var(--muted)}.st b{display:block;font-family:var(--f-mono);font-weight:400;color:var(--amber);font-size:16px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px}.tab{min-height:30px;padding:3px 10px;font-size:13px}.tab.on{border-color:var(--amber);color:var(--amber)}.tp{min-width:0;display:flex;flex-direction:column;gap:6px}
+select{font:inherit;color:var(--text);background:#0f2230;border:1px solid var(--line);padding:6px;border-radius:3px;width:100%}
+.news{min-width:0}
+.news h4{margin:0 0 4px;font-size:11px;letter-spacing:.18em;color:var(--khaki);font-weight:500}
+.tp ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.tp li{color:var(--muted)}.tp li:first-child{color:var(--text)}.tp li b{color:var(--amber);font-family:var(--f-mono);font-weight:400}
+.veil{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,18,25,.88);overflow:auto;z-index:5;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+[hidden]{display:none!important}
+.card{width:100%;max-width:560px;margin:auto;background:var(--panel);box-shadow:0 0 0 1px var(--line);padding:20px 22px;display:flex;flex-direction:column;gap:12px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--khaki)}
+h1,h2{margin:0;font-family:var(--f-display);font-weight:400;line-height:1.15;text-wrap:balance}
+h1{font-size:30px}h1 span{font-family:var(--f-mono);color:var(--amber);margin-left:.2em}
+h2{font-size:28px}
+.lead,.note{margin:0}.note{color:var(--muted);font-size:12.5px}
+.grp{font-size:11px;letter-spacing:.18em;color:var(--muted);margin:4px 0 -4px}
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px}
+.pick{text-align:left;display:flex;align-items:center;min-height:40px}
+.rank{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+.rank li{display:flex;gap:10px;align-items:baseline}
+.rank .n{flex:1;min-width:0}.rank .s{font-family:var(--f-mono);color:var(--muted)}
+.rank li.me{color:var(--amber)}
+.new{color:var(--amber)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<header class="hud">
+  <div class="brand"><span class="mark">世界史ストラテジー</span><span class="date" id="date">1936.01.01</span></div>
+  <div class="speed" id="speed" role="group" aria-label="ゲーム速度">
+    <button class="btn" data-s="0" type="button" aria-label="一時停止">⏸</button>
+    <button class="btn" data-s="1" type="button">1</button><button class="btn" data-s="2" type="button">2</button><button class="btn" data-s="3" type="button">3</button><button class="btn" data-s="4" type="button">4</button><button class="btn" data-s="5" type="button">5</button>
+    <button class="btn" id="j30" type="button" title="1か月進める">+1月</button><button class="btn" id="j365" type="button" title="1年進める">+1年</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="k">国</span><span class="v" id="me">-</span><button class="btn" id="chg" type="button" style="min-height:26px;padding:1px 8px;font-size:12px">国を変える</button></div>
+    <div class="stat"><span class="k">政治力</span><span class="v" id="pp" style="color:var(--amber)">0</span></div>
+    <div class="stat"><span class="k">工場</span><span class="v" id="fac">0</span></div>
+    <div class="stat"><span class="k">師団</span><span class="v" id="div">0</span></div>
+    <div class="stat"><span class="k">領土</span><span class="v" id="nTer">0</span></div>
+    <div class="stat"><span class="k">海軍</span><span class="v" id="nvy">0</span></div><div class="stat"><span class="k">空軍</span><span class="v" id="air">0</span></div><div class="stat"><span class="k">武器</span><span class="v" id="arms">0</span></div>
+    <div class="stat"><span class="k">生産</span><span class="bar"><i id="prod"></i></span></div>
+  </div>
+</header>
+
+<main class="mapbox" id="mapbox">
+  <canvas id="cv" aria-label="世界地図"></canvas>
+  <div class="zoom"><button class="btn" id="zin" type="button" aria-label="拡大">+</button><button class="btn" id="zout" type="button" aria-label="縮小">−</button><button class="btn" id="zhome" type="button" aria-label="自国へ" style="font-size:12px">自国</button></div>
+  <div class="hint">ドラッグで移動・ホイール/ピンチで拡大・スペースで一時停止</div>
+</main>
+
+<section class="panel" aria-live="polite">
+  <div class="info" id="info"></div>
+  <div class="side">
+    <div class="stgrid" id="stgrid"></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="btn tab on" data-tab="news" type="button">戦況・年表</button><button class="btn tab" data-tab="pol" type="button">政治</button><button class="btn tab" data-tab="dip" type="button">外交</button><button class="btn tab" data-tab="spt" type="button">スポーツ</button><button class="btn tab" data-tab="mil" type="button">軍隊</button>
+    </div>
+    <div class="tp" id="t-news"><ul id="news"></ul></div>
+    <div class="tp" id="t-mil" hidden></div>
+    <div class="tp" id="t-pol" hidden>
+      <div class="k">政治ルート(政治力20)</div>
+      <select id="route"><option>現体制を維持</option><option>民主化・議会勢力</option><option>軍部・権威主義勢力</option><option>立憲君主制への移行</option><option>共和制への移行</option><option>自治拡大・独立運動</option><option>内戦・政権交代(IF)</option></select>
+      <div class="acts"><button class="btn" id="applyRoute" type="button">ルートを選ぶ</button></div>
+      <p class="note">体制は生産力・安定度・威信に影響します。史実と違う選択はIFとして記録されます。</p>
+    </div>
+    <div class="tp" id="t-dip" hidden>
+      <div class="k">外交(選択中の領土の国が相手)</div>
+      <div class="acts"><button class="btn" id="dAlly" type="button">友好協定(8)</button><button class="btn" id="dTrade" type="button">貿易協定</button><button class="btn" id="dNeutral" type="button">中立宣言</button><button class="btn" id="dAid" type="button">支援を送る(資源8)</button><button class="btn" id="dBuy" type="button">武器を買う(資源8→5)</button></div>
+      <p class="note">宣戦布告は、敵領土への進軍命令で行います(政治力40)。</p>
+    </div>
+    <div class="tp" id="t-spt" hidden>
+      <p class="note" id="sportInfo" style="color:var(--text)"></p>
+      <div class="acts"><button class="btn" id="bid" type="button">大会開催に立候補(政治力10)</button></div>
+      <p class="note">五輪・パラリンピック・FIFAワールドカップ・FIBAワールドカップを扱います。戦争中は中止されることがあります。</p>
+    </div>
+  </div>
+</section>
+
+<section class="veil" id="vStart" aria-label="国を選ぶ">
+  <div class="card">
+    <div class="kicker">1936 – 2026</div>
+    <h1>世界史ストラテジー</h1>
+    <p class="lead">1936年から2026年までを、リアルタイムで進める世界史ストラテジー。師団を生産して戦線を動かし、政治・外交・国際大会を通じて国を育てよう。</p>
+    <p class="note">選べるのは、第二次世界大戦の開戦(1939年9月)から終戦(1945年9月)まで国として存在した国です。チェコスロバキア、アルバニア(開戦前に併合)、バルト三国(戦争中に併合)、エチオピア(1936年に併合)は選べません。</p>
+    <button class="btn" id="cancelPick" type="button" hidden>ゲームに戻る</button>
+    <div class="grp">主要国</div><div class="picks" id="picksMajor"></div>
+    <div class="grp">その他の国</div><div class="picks" id="picksMinor"></div>
+  </div>
+</section>
+
+<section class="veil" id="vEnd" hidden aria-label="結果">
+  <div class="card">
+    <div class="kicker" id="endKicker">終戦</div>
+    <h2 id="endTitle"></h2>
+    <p class="lead" id="endText"></p>
+    <ol class="rank" id="rank"></ol>
+    <button class="btn primary" id="again" type="button">国を選び直す</button>
+  </div>
+</section>
+
+<script>
+(() => {
+'use strict';
+/* ===== データ ===== */
+const LAND=[
+['N',"-166,68 -156,71 -141,70 -125,70 -110,68 -95,68 -88,68 -82,66 -90,62 -93,58 -85,55 -80,52 -79,57 -77,62 -70,60 -65,59 -62,56 -57,52 -60,48 -65,49 -66,45 -70,43 -70,41.5 -74,40 -76,37 -76,35 -81,31 -80,26 -82,26 -83,29 -88,30 -92,29 -97,27 -97,22 -95,18.5 -91,19 -90,21 -87,21 -88,16 -84,15.5 -83,10 -79.5,9 -77.5,8.5 -80,7.5 -85,10 -88,13 -92,14.5 -97,16 -105,19.5 -106,23 -112,30 -115,32 -117,32.5 -120,34.5 -124,40 -124,46 -125,49 -130,55 -137,59 -146,60.5 -152,59 -158,56.5 -164,55 -158,58.5 -162,60 -166,62 -165,64.5"],
+['S',"-77.5,8.5 -72,12 -64,10.5 -60,8.5 -52,5 -50,0 -44,-2.5 -35,-5.5 -35,-9 -39,-14 -39,-18 -42,-23 -48,-26 -49,-29 -53,-34 -57,-35 -57,-38.5 -62,-39 -65,-41 -65,-45 -68,-50 -69,-53 -68,-55 -72,-54 -75,-50 -74,-44 -73,-37 -71,-30 -70,-18 -76,-14 -81,-6 -80,-2 -80,1 -77.5,4"],
+['E',"-5.3,36 -9,37 -9.5,39 -8.8,42 -9,43.2 -2,43.5 -1.5,46 -4.6,48.4 -1.5,49.6 1.5,50.9 3.5,51.5 4.5,53 8,53.8 8.2,55.5 8.2,57 10.6,57.7 10.5,56 9.8,54.8 11.5,54.2 14,54 17,54.8 19.5,54.5 21,56 21.5,57.5 24,57.2 24.3,59.4 29,60 23,60 21.2,61 21.5,63.5 25,65.2 22,65.8 18,63 18.5,60 16.5,57 14,55.5 12.5,56 11,59 8,58.2 5.5,59 5,62 8,63.5 13,67.5 18,70 25,71 30,70 33,69.5 41,67.5 34,66.5 37,64.5 40,64 44,66 44,68.5 54,68.5 60,69 68,69 66,71 73,72.5 80,73 87,75 100,77 106,77 113,74 128,73 140,72.5 150,71 160,69.5 170,70 180,69 180,65 178,64.5 172,64 177,62.5 168,60 162,58 163,56 156,51 156,57 160,61 155,59.5 143,59 136,54 141,53 140,48 135,43.5 131,42.5 129.5,40.5 128,38.5 129.5,36 127,34.5 126,37 125,39.5 121.5,40.5 121,39 122,37 119.5,37.5 121,36.5 120,34.5 122,31 121.5,28 119.5,25.5 116,22.8 110,21 108,21.5 106,18 109,13 109,11.5 105,8.5 103,10.5 100.5,13.5 100,13 99.5,10 100.5,7 103.5,4 104,1.5 101,3 98.5,8 98,12 97.5,16.5 94,17 94,20 92,22 89,22 86,20 82,17 80,15 80,10 77.5,8 76,11 73,17 72.5,21 70,21 68,24 66,25.3 61,25 57,25.8 56.5,27 53,27 51,29.5 48.5,30 50,26 51.5,24.5 54,24 56,26 59,22.5 55,17 52,16 45,13 43,13 42.5,16 39,21 35,28 34,29.5 34.5,31 35,33 36,36 32,36.5 28,36.7 27,38 26.5,40 23,40.5 24,38 22.5,36.5 21,38 19.5,41 19,42 16,43.5 14.5,45 13.7,45.7 12.3,45.2 13,43.7 14,42 16,41.5 18.5,40.2 17,39 16.5,38.5 16,38 15.7,40 14,40.8 12,42 10.5,43.5 8.8,44.3 7,43.7 4,43.4 3,42 0,39.5 0,38.7 -2,36.8"],
+['A',"32.5,31 30,31.3 25,31.7 20,32 15,32.3 10,34 11,37 8,37 1,36.7 -2,35 -6,35.8 -9.5,32 -10,29 -13,27.5 -16.5,23 -17,20.5 -16.5,16 -17.5,14.7 -15,11 -13,8.5 -11,7 -7.5,4.5 -2,4.8 2,6.2 5,6 8.5,4.5 9.5,3 9.5,0 12,-5 13.5,-12 12,-17 14.5,-22.5 15,-27 18,-32 20,-34.7 25,-34 30,-31 32.5,-26 35,-24 35,-20 40,-15 40.5,-10 39,-5 41,-1.5 44,1.5 48,5 51,11 43.3,11.8 41,14.5 37.2,18.8 37,21.5 35.5,24 34,27 32.7,29.9"],
+['GB',"-5,50 1.5,51 1.7,53 0,54 -2,56 -2,57.5 -3,58.7 -5,58.5 -6,57 -5.5,55 -3,54.5 -4.5,53 -4.5,51.7"],
+['IE',"-10,51.7 -6,52 -6,54.5 -8,55.3 -10,54"],
+['IS',"-24,64 -22,66.4 -15,66.4 -14,64.5 -18,63.4"],
+['JP',"130.9,34 132,35.5 134,35.6 135.8,35.7 136.7,37.3 138,37.5 139.5,38.8 140,40 140.4,41.2 141.2,41.4 141.6,40.5 142,39.5 141.5,38 140.9,36.8 140.4,35.7 139.8,35 138.8,34.7 137.2,34.6 136.9,34.2 136,33.5 135.2,33.6 135,34.5 134,34.7 132.5,34.2 131.2,33.9"],
+['JP',"132.5,33.8 134,34.2 134.8,34 134.2,33.2 133,32.8 132.4,33.2"],
+['JP',"129.8,33.5 131,33.9 131.8,33.2 131.5,31.8 131,31.2 130.2,31.3 129.8,32.6"],
+['JP',"140,41.5 140.2,43.2 141.4,45.3 142.5,45.4 145.5,43.4 144,42.9 143.3,42 141.5,42.5 140.8,41.8"],
+['TW',"120,22 121.5,22 122,25 121,25.3 120,23.5"],
+['PH',"120,18.5 122.2,18.5 122,14 124,13 126,9 126,6 125,6 122,7 123,10 121,13.5 120,16"],
+['SU',"95.3,5.5 98,4 104,-1 106,-3 106,-5.8 104,-5.8 100,-1.5 95.3,3.5"],
+['JV',"105.2,-6.5 114.5,-7.5 114.5,-8.7 106,-7.8"],
+['BO',"109,1.5 111,2 116,7 119,5 117,1 116,-3.5 112,-3.5 110,-2.5 109,0"],
+['NG',"131,-0.8 135,-3.3 141,-2.6 147,-6 150,-10.5 143,-9 139.5,-8 137,-5 132,-3"],
+['AU',"114,-22 122,-17 126,-14 131,-12 136,-12 137,-16 141,-17.5 142.5,-10.8 145.5,-15 150,-22 153.5,-28 150.5,-37 147,-38.5 141,-38 138,-35 135,-34.5 131,-31.5 124,-33.5 119,-35 115,-34.2 114,-26"],
+['NZ',"172.5,-34.5 178.5,-37.7 175.5,-41.5 174,-39.5"],
+['NZ',"172.5,-40.5 174,-41.5 171,-45 168,-46.5 166.5,-45.5"],
+['GL',"-55,61 -43,60 -22,69 -18,76 -30,78 -60,77 -58,70"],
+['MG',"44,-25 47,-25 50,-15 49,-12 44,-16.5"]
+];
+const HOLES=["28,41.5 28.5,44 30,46 33,46.2 36,45 38,47 41,43 41.7,41.7 36,41.7 31,41.2","47,45 50,46.5 53,45.5 53.5,41 54,37.5 50.5,37 49,40 47.5,42"];
+/* [id, 日本語名, 色(任意), 初期の陣営, 選択可] */
+const CT=[
+['GER','ドイツ','#7f8790','n',1],['ITA','イタリア','#4f9e66','n',1],['JPN','日本','#e0654a','n',1],['UK','イギリス','#d98aa6','n',1],
+['FRA','フランス','#4f80d6','n',1],['USSR','ソ連','#b3382f','n',1],['USA','アメリカ','#37a6c8','n',1],['CHN','中華民国','#e3b83a','n',1],
+['CAN','カナダ','#c9805a','n',1],['AUS','オーストラリア','#9cc05a','n',1],['NZL','ニュージーランド','#6cc0a0','n',1],['SAF','南アフリカ','#c7a05a','n',1],
+['POL','ポーランド','#ebe2c6','n',1],['NLD','オランダ','#e8892a','n',1],['BEL','ベルギー','#cdb53c','n',1],['DNK','デンマーク','#b45c8c','n',1],
+['NOR','ノルウェー','#8c5fcf','n',1],['SWE','スウェーデン','#5aa0d6','n',1],['FIN','フィンランド','#a9c4d8','n',1],['CHE','スイス','#d8d8d8','n',1],
+['ESP','スペイン','#c9a23a','n',1],['PRT','ポルトガル','#3f8a5a','n',1],['IRL','アイルランド','#59b36b','n',1],['TUR','トルコ','#b9473f','n',1],
+['GRC','ギリシャ','#6f9be0','n',1],['YUG','ユーゴスラビア','#8f6a9e','n',1],['ROU','ルーマニア','#d4b84a','n',1],['HUN','ハンガリー','#a85a46','n',1],
+['BGR','ブルガリア','#6c9a52','n',1],['EGY','エジプト','#c8b27a','n',1],['IRN','イラン','#6aa58c','n',1],['IRQ','イラク','#a08a5e','n',1],
+['SAU','サウジアラビア','#7a9a4a','n',1],['AFG','アフガニスタン','#9a7a5a','n',1],['THA','タイ','#d4607a','n',1],['MNG','モンゴル','#5f7fa8','n',1],
+['MEX','メキシコ','#4c9a6a','n',1],['BRA','ブラジル','#7ab648','n',1],['ARG','アルゼンチン','#8ac0e0','n',1],['CHL','チリ','#c8604a','n',1],
+['COL','コロンビア','#d8c04a','n',1],['PER','ペルー','#c4806a','n',1],['SRK','サーク','#c8b04a','n',1],['NAI','水兵・建設労働者ソビエト共和国','#c0392b','n',1],['CAM','中米諸国','#8a8a6a','n',0],['BAL','バルト三国','#7a8a6a','n',0],['ETH','エチオピア','#9ab05a','n',0],['CZE','チェコスロバキア','#8aa0c8','n',0],['ALB','アルバニア','#b86a6a','n',0],
+['IND','インド',null,'n',0],['PAK','パキスタン',null,'n',0],['KOR','韓国',null,'n',0],['ISR','イスラエル',null,'n',0],['IDN','インドネシア',null,'n',0],['PHL','フィリピン',null,'n',0],['MYS','マレーシア',null,'n',0],['VNM','ベトナム',null,'n',0],['MMR','ビルマ',null,'n',0],['LBY','リビア',null,'n',0],['SDN','スーダン',null,'n',0],['ALG','アルジェリア',null,'n',0],['MLI','西アフリカ諸国',null,'n',0],['NGA','ナイジェリア',null,'n',0],['CAF','中央アフリカ諸国',null,'n',0],['KEN','ケニア',null,'n',0],['MDG','マダガスカル',null,'n',0],['COD','コンゴ',null,'n',0],['SYR','シリア',null,'n',0],['AGO','アンゴラ',null,'n',0],['MOZ','モザンビーク',null,'n',0],['ZWE','ジンバブエ',null,'n',0],['DDR','東ドイツ',null,'n',0],['UKR','ウクライナ',null,'n',0],['BLR','ベラルーシ',null,'n',0],['KAZ','カザフスタン',null,'n',0],['CPV','カーボベルデ',null,'n',0]
+];
+/* [キー, 名前, 経度, 緯度, 陸地, 領有国, 初期師団, 工業力] */
+const TD=[
+['ak','アラスカ',-150,64,'N','USA',1,1],['cw','カナダ西部',-118,57,'N','CAN',2,1],['ce','カナダ東部',-78,52,'N','CAN',2,2],
+['usw','米国西部',-120,39,'N','USA',3,3],['usc','米国中部',-100,41,'N','USA',3,3],['uss','米国南部',-92,32,'N','USA',3,3],['use','米国東部',-77,40,'N','USA',4,4],
+['mx','メキシコ',-102,23,'N','MEX',2,1],['ca','中米諸国',-88,14.5,'N','CAM',1,1],['gl','グリーンランド',-42,70,'GL','DNK',1,0],
+['co','コロンビア',-72,4,'S','COL',2,1],['pe','ペルー',-75,-10,'S','PER',2,1],['brn','ブラジル北部',-55,-5,'S','BRA',2,1],['brs','ブラジル南部',-48,-19,'S','BRA',2,2],
+['ar','アルゼンチン',-64,-35,'S','ARG',3,2],['pa','パタゴニア',-69,-48,'S','ARG',1,0],['cl','チリ',-71,-33,'S','CHL',2,1],
+['en','イングランド',-1,52.5,'GB','UK',6,4],['sc','スコットランド',-4,57,'GB','UK',2,1],['ie','アイルランド',-8,53.5,'IE','IRL',2,1],['is','アイスランド',-19,65,'IS','DNK',1,0],
+['frn','北フランス',2,49,'E','FRA',9,4],['sk','サーク',-2.36,49.43,'SK','SRK',1,1],['ns','ナイッサール島',24.5,59.6,'NS','NAI',1,1],['frs','南フランス',3,44.5,'E','FRA',5,3],['be','ベルギー',4.5,50.8,'E','BEL',4,1],['nl','オランダ',5.5,52.4,'E','NLD',3,1],
+['ch','スイス',8,46.8,'E','CHE',3,1],['es','スペイン',-4,40,'E','ESP',5,2],['pt','ポルトガル',-8,39,'E','PRT',2,1],['cv','カーボベルデ',-23.6,15.1,'CV','PRT',1,0],
+['gw','西ドイツ',8,51,'E','GER',11,3],['ge','東ドイツ',13.5,52.5,'E','GER',13,3],['gs','南ドイツ・オーストリア',12.5,48.2,'E','GER',9,3],['bo','ボヘミア',15,49.8,'E','CZE',4,2],
+['dk','デンマーク',9.5,56,'E','DNK',1,1],['no','南ノルウェー',9,61.5,'E','NOR',2,1],['non','北ノルウェー',21,69.8,'E','NOR',1,0],['se','スウェーデン',15,61,'E','SWE',3,2],['sen','北スウェーデン',20,66.5,'E','SWE',1,1],
+['fi','フィンランド',26,63.5,'E','FIN',4,1],['plw','ポーランド西部',18.5,52,'E','POL',6,2],['ple','ポーランド東部',22,51.5,'E','POL',5,1],['ba','バルト三国',24.5,57.2,'E','BAL',2,1],
+['hu','ハンガリー',19.5,47,'E','HUN',3,1],['ro','ルーマニア',25,45.5,'E','ROU',4,1],['bg','ブルガリア',25,42.5,'E','BGR',40,18],['yu','ユーゴスラビア',19,44,'E','YUG',4,1],
+['gr','ギリシャ',22,39,'E','GRC',3,1],['al','アルバニア',20,41,'E','ALB',1,0],['itn','北イタリア',11,45,'E','ITA',6,3],['its','南イタリア',15,41,'E','ITA',5,2],['tr','トルコ',33,39,'E','TUR',5,1],
+['mos','モスクワ',38,56,'E','USSR',8,4],['len','北ロシア',37,63,'E','USSR',4,1],['ukr','ウクライナ',31,50,'E','USSR',8,3],['blr','ベラルーシ',29,54,'E','USSR',3,1],['cau','カフカス',44,43.5,'E','USSR',4,2],
+['ural','ウラル',57,57,'E','USSR',4,3],['wsib','西シベリア',77,60,'E','USSR',3,2],['esib','東シベリア',108,61,'E','USSR',3,1],['far','極東ソ連',135,56,'E','USSR',5,1],['kaz','中央アジア',65,44,'E','USSR',3,1],
+['mn','モンゴル',104,46.5,'E','MNG',2,0],['tib','チベット・新疆',88,37,'E','CHN',1,0],['cnw','中国西部',101,34,'E','CHN',3,1],['cnc','中国中部',109,31,'E','CHN',5,2],['cns','中国南部',111,24,'E','CHN',4,2],
+['cnn','華北',115,38,'E','JPN',6,2],['cnj','華中沿岸',119,31,'E','JPN',4,2],['man','満州',126,45,'E','JPN',5,2],['kor','朝鮮',127,37,'E','JPN',3,1],
+['ind','インド',78,21,'E','UK',6,3],['inw','北西インド',71,29,'E','UK',3,1],['af','アフガニスタン',66,34,'E','AFG',2,0],['ir','イラン',54,32.5,'E','IRN',3,1],['iq','イラク',44,33,'E','IRQ',2,1],
+['sa','サウジアラビア',45,24,'E','SAU',2,1],['sy','シリア・レバノン',38.5,35.5,'E','FRA',3,1],['pal','パレスチナ',35.5,31.5,'E','UK',3,1],['bur','ビルマ',96,21,'E','UK',3,1],
+['mal','マラヤ',102,4,'E','UK',3,2],['th','タイ',101,15,'E','THA',3,1],['vn','仏領インドシナ',106,16,'E','FRA',3,1],
+['jp','本州',138,36.5,'JP','JPN',8,5],['ky','九州・四国',131.6,33.1,'JP','JPN',2,1],['hk','北海道',142,43.2,'JP','JPN',2,1],['tw','台湾',121,23.5,'TW','JPN',2,1],['ph','フィリピン',122,13,'PH','USA',3,1],
+['sm','スマトラ',101,-1,'SU','NLD',2,1],['jv','ジャワ',110.5,-7.4,'JV','NLD',3,2],['bn','ボルネオ',114,1,'BO','NLD',2,1],['ng','ニューギニア',142,-5,'NG','AUS',2,1],
+['aun','オーストラリア北部',132,-20,'AU','AUS',2,1],['aue','オーストラリア東部',147,-28,'AU','AUS',3,2],['auw','オーストラリア西部',120,-27,'AU','AUS',1,0],['nz','ニュージーランド',173,-40,'NZ','NZL',2,1],
+['mor','仏領北アフリカ',-2,32,'A','FRA',5,2],['lib','リビア',17,29,'A','ITA',5,1],['eg','エジプト',30.5,27,'A','EGY',3,1],['sud','スーダン',29,14,'A','UK',2,0],
+['paw','仏領西アフリカ',-5,15,'A','FRA',3,1],['nga','英領西アフリカ',4,8,'A','UK',2,1],['fea','仏領赤道アフリカ',17,3,'A','FRA',2,1],['cg','ベルギー領コンゴ',24,-3,'A','BEL',2,2],
+['ao','アンゴラ',16,-12,'A','PRT',1,0],['saf','南アフリカ',24,-28,'A','SAF',3,3],['rho','ローデシア',28,-18,'A','UK',1,1],['moz','モザンビーク',35,-16,'A','PRT',1,0],
+['ea','英領東アフリカ',36,-2,'A','UK',2,1],['eth','エチオピア',40,8,'A','ETH',4,1],['mg','マダガスカル',47,-19,'MG','FRA',1,0]
+];
+const SEA=[['cv','paw'],['cv','pt'],['ns','ba'],['ns','fi'],['en','frn'],['sk','frn'],['sk','en'],['en','be'],['en','nl'],['en','ie'],['sc','ie'],['sc','no'],['en','dk'],['sc','is'],['is','gl'],['gl','ce'],['dk','se'],['dk','no'],['ge','se'],['ba','se'],['fi','ba'],['es','mor'],['frs','mor'],['its','lib'],['its','al'],['eg','pal'],['eg','sa'],['sud','sa'],['eth','sa'],['ak','far'],['jp','kor'],['ky','kor'],['ky','cnj'],['hk','far'],['tw','cns'],['tw','cnj'],['tw','ky'],['tw','ph'],['ph','bn'],['bn','jv'],['bn','sm'],['bn','ng'],['sm','mal'],['jv','sm'],['ng','aun'],['aue','nz'],['jv','aun'],['mg','moz'],['mg','ea'],['itn','frs'],['jp','ky'],['jp','hk'],['gr','tr'],['ph','ng']];
+/* [年,月,日, 処理, 報告文] */
+const EV=[
+[1936,1,1,'peace JPN USSR 1','1936年1月。世界は大戦前夜の緊張に包まれている。'],
+[1936,3,7,'','ドイツ軍がラインラントに進駐。'],
+[1936,5,9,'own eth ITA','イタリアがエチオピアを併合。'],
+[1936,7,17,'','スペインで内戦が始まる(歴史的な出来事)。'],
+[1937,7,7,'pair CHN JPN 1','盧溝橋事件。日中戦争が始まる。'],
+[1938,3,12,'','ドイツがオーストリアを併合。'],
+[1939,3,15,'own bo GER','ドイツがチェコスロバキアを解体し、ボヘミアを占領。'],
+[1939,4,7,'own al ITA','イタリアがアルバニアを併合。'],
+[1939,9,1,'side GER x;side POL a;side UK a;side FRA a;side AUS a;side NZL a;side SAF a;side CAN a','ドイツ軍がポーランドへ侵攻。英仏などが宣戦し、第二次世界大戦が始まる。'],
+[1939,9,17,'pair POL USSR 1','ソ連軍がポーランド東部に侵攻。'],
+[1939,11,30,'pair USSR FIN 1','ソ連がフィンランドに侵攻(冬戦争)。'],
+[1940,3,13,'pair USSR FIN 0','モスクワ講和条約。冬戦争が終結。'],
+[1940,4,9,'side NOR a;side DNK a','ドイツ軍がデンマークとノルウェーに侵攻。'],
+[1940,5,10,'side BEL a;side NLD a;own is UK','ドイツ軍が西方攻勢を開始。イギリス軍がアイスランドを占領。'],
+[1940,6,10,'side ITA x;own ba USSR','イタリアが参戦。ソ連がバルト三国を併合。'],
+[1940,9,13,'pair ITA EGY 1','イタリア軍がエジプトに侵攻。'],
+[1940,10,28,'side GRC a','イタリア軍がギリシャに侵攻。'],
+[1940,11,20,'side HUN x;side ROU x','ハンガリーとルーマニアが三国同盟に加盟。'],
+[1941,3,1,'side BGR x','ブルガリアが三国同盟に加盟。'],
+[1941,4,6,'side YUG a;own eth ETH;side ETH a','ドイツ軍がユーゴスラビアとギリシャに侵攻。エチオピアが解放される。'],
+[1941,5,2,'pair UK IRQ 1','イラクでイギリスとの戦闘が始まる。'],
+[1941,5,31,'pair UK IRQ 0','イラクの戦闘が終結。'],
+[1941,6,22,'side USSR a;side FIN x;pair POL USSR 0;pair USSR FIN 0','バルバロッサ作戦。ドイツがソ連に侵攻する。'],
+[1941,8,25,'pair UK IRN 1;pair USSR IRN 1','英ソ両軍がイランに進駐。'],
+[1941,9,17,'pair UK IRN 0;pair USSR IRN 0','イランが停戦。'],
+[1941,12,7,'side USA a;side JPN x;side THA x','真珠湾攻撃。太平洋戦争が始まり、アメリカが参戦。'],
+[1942,5,22,'side MEX a','メキシコが連合国側で参戦。'],
+[1942,8,22,'side BRA a','ブラジルが連合国側で参戦。'],
+[1945,2,23,'side TUR a','トルコが連合国側で参戦。'],
+[1945,8,9,'peace JPN USSR 0','ソ連が日ソ中立条約を破棄し、対日参戦。'],
+[1945,9,2,'peaceall;own man CHN;own cnn CHN;own cnj CHN;own tw CHN;own kor KOR','日本が降伏文書に署名し、第二次世界大戦が終結。国際連合が発足へ向かう。'],
+[1946,4,17,'own sy SYR','シリアが独立。'],
+[1946,7,4,'own ph PHL','フィリピンが独立。'],
+[1947,8,15,'own ind IND;own inw PAK','インドとパキスタンが独立。'],
+[1948,1,4,'own bur MMR','ビルマが独立。'],
+[1948,5,14,'own pal ISR','イスラエルが建国を宣言。'],
+[1949,10,7,'own ge DDR','ドイツが東西に分かれる。'],
+[1949,12,27,'own sm IDN;own jv IDN;own bn IDN','インドネシアが独立。'],
+[1951,12,24,'own lib LBY','リビアが独立。'],
+[1954,7,21,'own vn VNM','ジュネーブ協定。インドシナ戦争が終結。'],
+[1956,1,1,'own sud SDN','スーダンが独立。'],
+[1957,8,31,'own mal MYS','マラヤが独立。'],
+[1960,6,30,'own cg COD;own paw MLI;own nga NGA;own fea CAF;own ea KEN;own mg MDG','「アフリカの年」。多くの植民地が独立する。'],
+[1962,7,5,'own mor ALG','アルジェリアが独立。'],
+[1975,6,25,'own ao AGO;own moz MOZ','アンゴラとモザンビークが独立。'],
+[1975,7,5,'own cv CPV','カーボベルデがポルトガルから独立。'],
+[1980,4,18,'own rho ZWE','ジンバブエが独立。'],
+[1989,11,9,'','ベルリンの壁が開放される。'],
+[1990,10,3,'own ge GER','東西ドイツが統一。'],
+[1991,9,6,'own ba BAL','バルト三国が独立を回復。'],
+[1991,12,26,'own ukr UKR;own blr BLR;own kaz KAZ;rename USSR ロシア','ソ連が解体。冷戦が終結。'],
+[2001,9,11,'','同時多発テロ事件。国際情勢が大きく変わる。'],
+[1970,5,14,'','西ドイツで赤軍派(RAF)が活動を始める。'],
+[1977,1,1,'','シーシェパードが設立され、海に船が現れる。'],
+[1998,4,20,'','赤軍派(RAF)が解散を宣言する。'],
+[2014,6,29,'','ISISがイラクとシリアの一部で「カリフ制国家」の樹立を宣言する。'],
+[2017,12,9,'','イラク政府がISISに対する勝利を宣言する。'],
+[2008,9,15,'','世界金融危機が起きる。'],
+[2022,2,24,'','欧州で大規模な戦争が再び起きる。']
+];
+/* ===== 追加の国・地域 [ISO, 名前, 経度, 緯度, 1936年の領有国, 変遷(年:領有国), 選択可, 既存領土キー] ===== */
+const XT=[
+['AC','アセンション島',-14.4,-7.9,'UK',''],['AD','アンドラ',1.5,42.5,'AD','',1],['AE','アラブ首長国連邦',54.4,24.3,'UK','1971:AE'],['AG','アンティグア・バーブーダ',-61.8,17.1,'UK','1981:AG'],['AI','アンギラ',-63.1,18.2,'UK',''],['AM','アルメニア',44.5,40.2,'USSR','1991:AM'],['AQ','南極',0,-57,'AQ',''],['AS','アメリカ領サモア',-170.7,-14.3,'USA',''],['AT','オーストリア',14.5,47.5,'AT','1938:GER,1945:AT'],['AW','アルバ',-70,12.5,'NLD',''],['AX','オーランド諸島',20,60.2,'FIN',''],['AZ','アゼルバイジャン',47.5,40.4,'USSR','1991:AZ'],
+['BA','ボスニア・ヘルツェゴビナ',17.7,44,'YUG','1992:BA'],['BB','バルバドス',-59.6,13.2,'UK','1966:BB'],['BD','バングラデシュ',90.3,23.8,'UK','1947:PAK,1971:BD'],['BF','ブルキナファソ',-1.5,12.3,'FRA','1960:BF'],['BH','バーレーン',50.6,26,'UK','1971:BH'],['BI','ブルンジ',29.9,-3.4,'BEL','1962:BI'],['BJ','ベナン',2.3,9.3,'FRA','1960:BJ'],['BL','サン・バルテルミー島',-62.8,17.9,'FRA',''],['BM','バミューダ',-64.8,32.3,'UK',''],['BN','ブルネイ',114.7,4.5,'UK','1984:BN'],['BO','ボリビア',-64.7,-16.7,'BO','',1],['BQ','オランダ領カリブ',-68.3,12.2,'NLD',''],['BS','バハマ',-77.4,25,'UK','1973:BS'],['BT','ブータン',90.4,27.5,'BT','',1],['BV','ブーベ島',3.4,-54.4,'NOR',''],['BW','ボツワナ',24.7,-22.3,'UK','1966:BW'],['BZ','ベリーズ',-88.7,17.2,'UK','1981:BZ'],
+['CC','ココス諸島',96.8,-12.2,'AUS',''],['CG','コンゴ共和国',15.3,-1,'FRA','1960:CG'],['CI','コートジボワール',-5.5,7.5,'FRA','1960:CI'],['CK','クック諸島',-159.8,-21.2,'NZL',''],['CM','カメルーン',12.5,5.5,'FRA','1960:CM'],['CP','クリッパートン島',-109.2,10.3,'FRA',''],['CR','コスタリカ',-84.2,9.9,'CR','',1],['CU','キューバ',-79.5,21.8,'CU','',1],['CW','キュラソー',-69,12.2,'NLD',''],['CX','クリスマス島',105.7,-10.5,'UK',''],['CY','キプロス',33.2,35,'UK','1960:CY'],
+['DG','ディエゴガルシア島',72.4,-7.3,'UK',''],['DJ','ジブチ',42.6,11.8,'FRA','1977:DJ'],['DM','ドミニカ国',-61.4,15.4,'UK','1978:DM'],['DO','ドミニカ共和国',-70.2,18.9,'DO','',1],['EA','セウタ・メリリャ',-5.3,35.9,'ESP',''],['EC','エクアドル',-78.4,-1.4,'EC','',1],['EE','エストニア',25.5,58.7,'BAL','1940:USSR,1991:EE'],['EH','西サハラ',-13,24.5,'ESP',''],['ER','エリトリア',38.8,15.3,'ITA','1941:UK,1952:ETH,1993:ER'],['EU','欧州連合',4,51.4,'BEL','1993:EU'],
+['FJ','フィジー',178,-17.8,'UK','1970:FJ'],['FK','フォークランド諸島',-59.5,-51.7,'UK',''],['FM','ミクロネシア連邦',158.2,6.9,'JPN','1945:USA,1986:FM'],['FO','フェロー諸島',-6.9,62,'DNK',''],['GA','ガボン',11.6,-0.8,'FRA','1960:GA'],['GD','グレナダ',-61.7,12.1,'UK','1974:GD'],['GE','ジョージア',43.5,42.2,'USSR','1991:GE'],['GF','フランス領ギアナ',-53,4,'FRA',''],['GG','ガーンジー',-2.6,49.5,'UK',''],['GH','ガーナ',-1.2,7.9,'UK','1957:GH'],['GI','ジブラルタル',-5.35,36.1,'UK',''],['GM','ガンビア',-15.4,13.5,'UK','1965:GM'],['GN','ギニア',-10.9,10.5,'FRA','1958:GN'],['GP','グアドループ',-61.6,16.3,'FRA',''],['GQ','赤道ギニア',10.3,1.6,'ESP','1968:GQ'],['GS','サウスジョージア・サウスサンドウィッチ諸島',-36.5,-54.3,'UK',''],['GT','グアテマラ',-90.5,15.5,'GT','',1],['GU','グアム',144.8,13.5,'USA',''],['GW','ギニアビサウ',-15,12,'PRT','1974:GW'],['GY','ガイアナ',-58.9,4.9,'UK','1966:GY'],
+['HK','香港',114.2,22.3,'UK','1997:CHN'],['HM','ハード島・マクドナルド諸島',73.5,-53.1,'AUS',''],['HN','ホンジュラス',-86.6,14.8,'HN','',1],['HR','クロアチア',15.9,45.1,'YUG','1991:HR'],['HT','ハイチ',-72.3,19,'HT','',1],['IC','カナリア諸島',-15.6,28.3,'ESP',''],['IM','マン島',-4.5,54.2,'UK',''],['IO','英領インド洋地域',71.8,-5.3,'UK',''],['IS','アイスランド',0,0,'DNK','1944:IS',0,'is'],
+['JE','ジャージー',-2.1,49.2,'UK',''],['JM','ジャマイカ',-77.3,18.1,'UK','1962:JM'],['JO','ヨルダン',36.5,31,'UK','1946:JO'],['KG','キルギス',74.6,41.5,'USSR','1991:KG'],['KH','カンボジア',104.9,12.6,'FRA','1953:KH'],['KI','キリバス',173,1.4,'UK','1979:KI'],['KM','コモロ',43.3,-11.7,'FRA','1975:KM'],['KN','セントクリストファー・ネイビス',-62.7,17.3,'UK','1983:KN'],['KP','北朝鮮',127,40,'JPN','1945:USSR,1948:KP'],['KW','クウェート',47.7,29.3,'UK','1961:KW'],['KY','ケイマン諸島',-81.2,19.3,'UK',''],
+['LA','ラオス',102.5,18.2,'FRA','1953:LA'],['LB','レバノン',35.9,33.9,'FRA','1943:LB'],['LC','セントルシア',-61,13.9,'UK','1979:LC'],['LI','リヒテンシュタイン',9.55,47.15,'LI','',1],['LK','スリランカ',80.7,7.9,'UK','1948:LK'],['LR','リベリア',-9.4,6.4,'LR','',1],['LS','レソト',28.2,-29.6,'UK','1966:LS'],['LT','リトアニア',23.9,55.3,'BAL','1940:USSR,1991:LT'],['LU','ルクセンブルク',6.1,49.8,'LU','',1],['LV','ラトビア',24.9,56.9,'BAL','1940:USSR,1991:LV'],
+['MA','モロッコ',-6,33.5,'FRA','1956:MA'],['MC','モナコ',7.4,43.7,'MC','',1],['MD','モルドバ',28.5,47,'ROU','1940:USSR,1991:MD'],['ME','モンテネグロ',19.3,42.8,'YUG','2006:ME'],['MF','サン・マルタン',-63.1,18.1,'FRA',''],['MH','マーシャル諸島',168,7.1,'JPN','1945:USA,1986:MH'],['MK','北マケドニア',21.7,41.6,'YUG','1991:MK'],['MO','マカオ',113.5,22.2,'PRT','1999:CHN'],['MP','北マリアナ諸島',145.7,15.2,'JPN','1945:USA'],['MQ','マルティニーク',-61,14.7,'FRA',''],['MR','モーリタニア',-10.9,20.3,'FRA','1960:MR'],['MS','モントセラト',-62.2,16.75,'UK',''],['MT','マルタ',14.4,35.9,'UK','1964:MT'],['MU','モーリシャス',57.5,-20.2,'UK','1968:MU'],['MV','モルディブ',73.5,4.2,'UK','1965:MV'],['MW','マラウイ',34,-13.2,'UK','1964:MW'],
+['NA','ナミビア',17.1,-22,'SAF','1990:NA'],['NC','ニューカレドニア',165.6,-21.3,'FRA',''],['NE','ニジェール',8.1,17.6,'FRA','1960:NE'],['NF','ノーフォーク島',168,-29,'AUS',''],['NI','ニカラグア',-85.2,12.9,'NI','',1],['NP','ネパール',84.1,28.4,'NP','',1],['NR','ナウル',166.9,-0.5,'AUS','1968:NR'],['NU','ニウエ',-169.9,-19,'NZL',''],['OM','オマーン',56.1,21.5,'OM','',1],
+['PA','パナマ',-80.1,8.5,'PA','',1],['PF','フランス領ポリネシア',-149.4,-17.7,'FRA',''],['PG','パプアニューギニア',147,-6.5,'AUS','1975:PG'],['PM','サンピエール島・ミクロン島',-56.3,46.8,'FRA',''],['PN','ピトケアン諸島',-128.3,-25.1,'UK',''],['PR','プエルトリコ',-66.5,18.2,'USA',''],['PS','パレスチナ',35.2,31.9,'UK','1948:JO,1988:PS'],['PW','パラオ',134.5,7.5,'JPN','1945:USA,1994:PW'],['PY','パラグアイ',-58,-23.4,'PY','',1],['QA','カタール',51.2,25.3,'UK','1971:QA'],
+['RE','レユニオン',55.5,-21.1,'FRA',''],['RS','セルビア',0,0,'YUG','2006:RS',0,'yu'],['RW','ルワンダ',29.9,-2,'BEL','1962:RW'],['SB','ソロモン諸島',160,-9,'UK','1978:SB'],['SC','セーシェル',55.5,-4.6,'UK','1976:SC'],['SG','シンガポール',103.8,1.35,'UK','1965:SG'],['SH','セントヘレナ',-5.7,-16,'UK',''],['SI','スロベニア',14.8,46.1,'YUG','1991:SI'],['SJ','スヴァールバル諸島・ヤンマイエン島',15,77.5,'NOR',''],['SK','スロバキア',19.5,48.7,'CZE','1939:SK'],['SL','シエラレオネ',-11.8,8.5,'UK','1961:SL'],['SM','サンマリノ',12.45,43.94,'SM','',1],['SN','セネガル',-14.5,14.5,'FRA','1960:SN'],['SO','ソマリア',46,5,'ITA','1960:SO'],['SR','スリナム',-56,4,'NLD','1975:SR'],['SS','南スーダン',31.3,7.3,'UK','1956:SDN,2011:SS'],['ST','サントメ・プリンシペ',6.6,0.3,'PRT','1975:ST'],['SV','エルサルバドル',-88.9,13.7,'SV','',1],['SX','シント・マールテン',-63,18,'NLD',''],['SZ','エスワティニ',31.5,-26.5,'UK','1968:SZ'],
+['TA','トリスタンダクーニャ',-12.3,-37.1,'UK',''],['TC','タークス・カイコス諸島',-71.8,21.8,'UK',''],['TD','チャド',18.7,15.4,'FRA','1960:TD'],['TF','フランス領南方・南極地域',69.5,-49.3,'FRA',''],['TG','トーゴ',1.2,8.6,'FRA','1960:TG'],['TJ','タジキスタン',71,38.8,'USSR','1991:TJ'],['TK','トケラウ',-171.8,-9.2,'NZL',''],['TL','東ティモール',125.7,-8.8,'PRT','1975:IDN,2002:TL'],['TM','トルクメニスタン',59.5,39,'USSR','1991:TM'],['TN','チュニジア',9.5,34,'FRA','1956:TN'],['TO','トンガ',-175.2,-21.2,'UK','1970:TO'],['TT','トリニダード・トバゴ',-61.2,10.7,'UK','1962:TT'],['TV','ツバル',179.2,-8.5,'UK','1978:TV'],['TZ','タンザニア',34.8,-6.3,'UK','1961:TZ'],
+['UG','ウガンダ',32.4,1.4,'UK','1962:UG'],['UM','合衆国領有小離島',-176.6,28.2,'USA',''],['UN','国際連合',-73.9,41,'USA','1945:UN'],['UY','ウルグアイ',-56,-33,'UY','',1],['UZ','ウズベキスタン',64.5,41.4,'USSR','1991:UZ'],['VA','バチカン市国',12.45,41.9,'VA','',1],['VC','セントビンセント・グレナディーン',-61.2,13.25,'UK','1979:VC'],['VE','ベネズエラ',-66.6,7.5,'VE','',1],['VG','英領ヴァージン諸島',-64.6,18.4,'UK',''],['VI','米領ヴァージン諸島',-64.9,18.35,'USA',''],['VU','バヌアツ',167.7,-16.2,'UK','1980:VU'],['WF','ウォリス・フツナ',-176.2,-13.3,'FRA',''],['WS','サモア',-172.1,-13.6,'NZL','1962:WS'],['XK','コソボ',20.9,42.6,'YUG','2008:XK'],['YE','イエメン',47.5,15.5,'YE','',1],['YT','マヨット',45.2,-12.8,'FRA',''],['ZM','ザンビア',27.8,-13.1,'UK','1964:ZM'],['WLS','ウェールズ',-3.7,52.3,'UK','']
+];
+const isoF=c=>String.fromCodePoint(...c.split('').map(x=>127397+x.charCodeAt(0)));
+(function(){
+  const nm={}; CT.forEach(c=>nm[c[0]]=c[1]); XT.forEach(x=>nm[x[0]]=x[1]);
+  XT.forEach(([id,name,lon,lat,own,chain,sel,ek])=>{
+    CT.push([id,name,null,'n',sel||0]);
+    const key=ek||('x_'+id.toLowerCase());
+    if(!ek){ const ind=own===id; TD.push([key,name,lon,lat,'~'+id,own,ind?2:1,ind?1:0]); }
+    if(chain) chain.split(',').forEach(p=>{ const [y,o]=p.split(':'); EV.push([+y,7,1,'own '+key+' '+o,name+(o===id?'が独立。':'の領有国が'+nm[o]+'に変わる。')]); });
+  });
+})();
+/* ===== 基本 ===== */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const COLS=480,ROWS=184,CS=3,MW=COLS*CS,MH=ROWS*CS,DLON=.75,DLAT=136/184;
+const C={}; let hueN=0;
+CT.forEach(([id,name,col,side,pl])=>{ C[id]={id,name,col:col||('hsl('+((hueN++*53+20)%360)+',46%,56%)'),side,pl:!!pl,alive:true,had:true,prod:0,pp:0,fac:0,focus:{},res:50,stab:70,pres:10,arms:0,routeMult:1,route:'現体制を維持'}; });
+const T=TD.map(([key,name,lon,lat,land,owner,troops,ic],i)=>({i,key,name,lon,lat,land,owner,troops,ic,nb:[],cells:[],mx:0,my:0,fort:1,navy:0,air:0}));
+const K={}; T.forEach(t=>K[t.key]=t.i);
+const wx=lon=>(lon+180)/360*MW, wy=lat=>(78-lat)/136*MH;
+
+/* ===== 地図の生成 ===== */
+const tid=new Int16Array(COLS*ROWS).fill(-1);
+(function build(){
+  const parse=s=>s.trim().split(/\s+/).map(p=>p.split(',').map(Number));
+  const polys=LAND.map(([l,s])=>{ const p=parse(s); let a=1e9,b=-1e9,c=1e9,d=-1e9; p.forEach(([x,y])=>{a=Math.min(a,x);b=Math.max(b,x);c=Math.min(c,y);d=Math.max(d,y)}); return {l,p,a,b,c,d}; });
+  const holes=HOLES.map(s=>({p:parse(s)}));
+  const pip=(x,y,p)=>{ let in_=false; for(let i=0,j=p.length-1;i<p.length;j=i++){ const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1]; if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi) in_=!in_; } return in_; };
+  const by={}; T.forEach(t=>(by[t.land]=by[t.land]||[]).push(t));
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const lon=-180+(c+.5)*DLON, lat=78-(r+.5)*DLAT;
+    let L=null; for(const q of polys){ if(lon<q.a||lon>q.b||lat<q.c||lat>q.d) continue; if(pip(lon,lat,q.p)){ L=q.l; break; } }
+    if(!L||!by[L]) continue;
+    if(L==='E'&&holes.some(h=>pip(lon,lat,h.p))) continue;
+    const cs=Math.cos(lat*Math.PI/180); let best=1e9,bi=-1;
+    for(const t of by[L]){ const dx=(lon-t.lon)*cs, dy=lat-t.lat, d=dx*dx+dy*dy; if(d<best){best=d;bi=t.i;} }
+    tid[r*COLS+c]=bi; T[bi].cells.push(r*COLS+c);
+  }
+  const link=(a,b)=>{ if(a===b||a<0||b<0) return; if(!T[a].nb.includes(b)){T[a].nb.push(b);T[b].nb.push(a);} };
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){ const a=tid[r*COLS+c]; if(c<COLS-1) link(a,tid[r*COLS+c+1]); if(r<ROWS-1) link(a,tid[(r+1)*COLS+c]); }
+  SEA.forEach(([a,b])=>link(K[a],K[b]));
+  T.forEach(t=>{ if(t.land[0]!=='~') return; const cs=Math.cos(t.lat*Math.PI/180);
+    T.filter(o=>o!==t).map(o=>[Math.hypot((o.lon-t.lon)*cs,o.lat-t.lat),o]).sort((a,b)=>a[0]-b[0]).slice(0,2).forEach(([,o])=>link(t.i,o.i)); });
+  T.forEach(t=>{
+    if(!t.cells.length){ t.mx=wx(t.lon); t.my=wy(t.lat); return; }
+    let sx=0,sy=0; t.cells.forEach(i=>{sx+=i%COLS;sy+=(i/COLS|0);}); sx/=t.cells.length; sy/=t.cells.length;
+    let bd=1e9,bi=t.cells[0]; t.cells.forEach(i=>{ const d=(i%COLS-sx)**2+((i/COLS|0)-sy)**2; if(d<bd){bd=d;bi=i;} });
+    t.mx=(bi%COLS+.5)*CS; t.my=((bi/COLS|0)+.5)*CS;
+  });
+})();
+
+/* ===== 描画 ===== */
+const cv=$('cv'), ctx=cv.getContext('2d'), box=$('mapbox');
+const mc=document.createElement('canvas'); mc.width=MW; mc.height=MH; const mx=mc.getContext('2d');
+let dirty=true, dpr=1, CW=300, CH=300;
+const V={k:1,x:0,y:0};
+const S={sel:null,tgt:null,me:null};
+const ownerCol=t=>C[t.owner].col;
+function paintMap(){
+  mx.fillStyle='#0f2f42'; mx.fillRect(0,0,MW,MH);
+  mx.fillStyle='rgba(255,255,255,.045)';
+  for(let lon=-150;lon<=180;lon+=30) mx.fillRect(wx(lon),0,1,MH);
+  for(let lat=-30;lat<=60;lat+=30) mx.fillRect(0,wy(lat),MW,1);
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){ const t=tid[r*COLS+c]; if(t<0) continue; mx.fillStyle=ownerCol(T[t]); mx.fillRect(c*CS,r*CS,CS,CS); }
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const t=tid[r*COLS+c]; if(t<0) { continue; }
+    const n=[[c+1,r,1],[c,r+1,0]];
+    for(const [cc,rr,v] of n){
+      const o=(cc<COLS&&rr<ROWS)?tid[rr*COLS+cc]:-1; if(o===t) continue;
+      let w,col;
+      if(o<0){ w=1.6; col='rgba(6,16,22,.8)'; }
+      else if(T[o].owner!==T[t].owner){ w=2.2; col='rgba(6,14,20,.92)'; }
+      else { w=1; col='rgba(6,14,20,.4)'; }
+      mx.fillStyle=col;
+      if(v) mx.fillRect((c+1)*CS-w/2,r*CS,w,CS); else mx.fillRect(c*CS,(r+1)*CS-w/2,CS,w);
+    }
+    if(c>0&&tid[r*COLS+c-1]<0){ mx.fillStyle='rgba(6,16,22,.8)'; mx.fillRect(c*CS-.8,r*CS,1.6,CS); }
+    if(r>0&&tid[(r-1)*COLS+c]<0){ mx.fillStyle='rgba(6,16,22,.8)'; mx.fillRect(c*CS,r*CS-.8,CS,1.6); }
+  }
+  dirty=false;
+}
+const mrk=()=>clamp(6+V.k*3.2,8,15);
+function clampView(){
+  const w=MW*V.k,h=MH*V.k;
+  V.x = w<=CW ? (CW-w)/2 : clamp(V.x,CW-w,0);
+  V.y = h<=CH ? (CH-h)/2 : clamp(V.y,CH-h,0);
+}
+function kMin(){ return Math.min(CW/MW,CH/MH); }
+function zoomAt(f,sx,sy){
+  const k=clamp(V.k*f,kMin(),7), r=k/V.k; V.x=sx-(sx-V.x)*r; V.y=sy-(sy-V.y)*r; V.k=k; clampView();
+}
+function focusOn(i){ const t=T[i]; V.k=Math.max(V.k,Math.max(CW/MW,CH/MH)*1.6); V.x=CW/2-t.mx*V.k; V.y=CH/2-t.my*V.k; clampView(); }
+function fitView(){ V.k=Math.max(CW/MW,CH/MH); V.x=0;V.y=0; clampView(); }
+function resize(){
+  const r=box.getBoundingClientRect(); CW=Math.max(100,r.width); CH=Math.max(100,r.height); dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.width=Math.round(CW*dpr); cv.height=Math.round(CH*dpr);
+  V.k=Math.max(V.k,kMin()); clampView();
+}
+function relOf(a,b){ // aから見たbの関係
+  if(a===b) return 'me'; if(atWar(a,b)) return 'enemy'; if(C[a].side!=='n'&&C[a].side===C[b].side) return 'ally'; return 'neutral';
+}
+function draw(){
+  if(dirty) paintMap();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#0f2f42'; ctx.fillRect(0,0,CW,CH);
+  ctx.save(); ctx.translate(V.x,V.y); ctx.scale(V.k,V.k); ctx.imageSmoothingEnabled=false; ctx.drawImage(mc,0,0);
+  const fillT=(i,col)=>{ ctx.fillStyle=col; T[i].cells.forEach(c=>ctx.fillRect((c%COLS)*CS,(c/COLS|0)*CS,CS,CS)); };
+  if(S.sel!=null){
+    const s=T[S.sel];
+    if(s.owner===S.me) s.nb.forEach(n=>{ const rel=relOf(S.me,T[n].owner); fillT(n, rel==='enemy'?'rgba(226,85,59,.34)':rel==='neutral'?'rgba(240,192,64,.3)':rel==='ally'?'rgba(143,200,255,.2)':'rgba(127,196,122,.3)'); });
+    fillT(S.sel,'rgba(255,255,255,.3)');
+    if(S.tgt!=null) fillT(S.tgt,'rgba(255,255,255,.3)');
+  }
+  ctx.restore();
+  // 進軍中の矢印
+  ctx.lineCap='round';
+  for(const b of BT){
+    const a=T[b.src],d=T[b.tgt], x1=V.x+a.mx*V.k,y1=V.y+a.my*V.k,x2=V.x+d.mx*V.k,y2=V.y+d.my*V.k;
+    const mine=b.owner===S.me; ctx.strokeStyle=mine?'rgba(240,168,48,.95)':'rgba(226,85,59,.95)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x1+(x2-x1)*Math.max(.12,b.prog/100),y1+(y2-y1)*Math.max(.12,b.prog/100)); ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if(dateOf(G.day).y>=1977){ const tm=performance.now()/1000, sx=V.x+wx(60+Math.sin(tm/20)*8)*V.k, sy=V.y+wy(-48+Math.cos(tm/17)*2)*V.k+Math.sin(tm*1.5)*1.5;
+    if(sx>-50&&sx<CW+50&&sy>-50&&sy<CH+50){ const u=clamp(5+V.k*3.5,9,26)/10;
+      ctx.save(); ctx.translate(sx,sy); ctx.scale(u,u);
+      ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-14,6); ctx.lineTo(-24,7); ctx.moveTo(-12,8); ctx.lineTo(-20,10); ctx.stroke();
+      ctx.fillStyle='#14181c'; ctx.beginPath(); ctx.moveTo(-13,-2); ctx.lineTo(13,-2); ctx.lineTo(9,5); ctx.lineTo(-10,5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#e8efe9'; ctx.fillRect(-6,-8,9,6); ctx.fillRect(-3,-12,5,4);
+      ctx.fillStyle='#14181c'; ctx.fillRect(5,-13,1,11); ctx.fillRect(-1,-14,1,3);
+      ctx.fillStyle='#fff'; ctx.fillRect(6,-13,6,4); ctx.fillStyle='#14181c'; ctx.fillRect(8,-12,2,2);
+      ctx.restore();
+      if(V.k>=1.6){ ctx.font='11px "Zen Kaku Gothic New",sans-serif'; ctx.textAlign='center'; ctx.lineJoin='round'; ctx.lineWidth=3; ctx.strokeStyle='rgba(8,18,25,.9)'; ctx.strokeText('シーシェパード',sx,sy+16*u+6); ctx.fillStyle='#e8efe9'; ctx.fillText('シーシェパード',sx,sy+16*u+6); } } }
+  // 師団カウンター
+  const R=mrk(); ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='700 '+Math.round(R*1.05)+'px "Share Tech Mono",monospace';
+  for(const t of T){
+    const sx=V.x+t.mx*V.k, sy=V.y+t.my*V.k; if(sx<-20||sy<-20||sx>CW+20||sy>CH+20) continue;
+    const n=Math.ceil(t.troops-.001), sel=(t.i===S.sel||t.i===S.tgt), w=R*(n>=10?2.1:1.7);
+    ctx.fillStyle='rgba(8,18,25,.88)'; ctx.fillRect(sx-w/2,sy-R*.75,w,R*1.5);
+    ctx.lineWidth=sel?2.4:1.4; ctx.strokeStyle=sel?'#fff':ownerCol(t); ctx.strokeRect(sx-w/2,sy-R*.75,w,R*1.5);
+    ctx.fillStyle=ownerCol(t); ctx.fillRect(sx-w/2,sy-R*.75,Math.max(3,R*.28),R*1.5);
+    ctx.fillStyle='#eef2ee'; ctx.fillText(String(n),sx+R*.12,sy+1);
+  }
+  if(V.k>=2.2){
+    ctx.font='500 11px "Zen Kaku Gothic New",sans-serif'; ctx.lineJoin='round'; ctx.lineWidth=3;
+    for(const t of T){ const sx=V.x+t.mx*V.k, sy=V.y+t.my*V.k+R+4; if(sx<0||sy<0||sx>CW||sy>CH) continue;
+      ctx.strokeStyle='rgba(8,18,25,.9)'; ctx.strokeText(t.name,sx,sy); ctx.fillStyle='#e8efe9'; ctx.fillText(t.name,sx,sy); }
+  }
+}
+
+/* ===== 入力 ===== */
+function hit(sx,sy){
+  const x=(sx-V.x)/V.k, y=(sy-V.y)/V.k; const c=Math.floor(x/CS), r=Math.floor(y/CS);
+  if(c>=0&&r>=0&&c<COLS&&r<ROWS&&tid[r*COLS+c]>=0) return tid[r*COLS+c];
+  let bi=-1,bd=(mrk()*1.6)**2; for(const t of T){ const dx=V.x+t.mx*V.k-sx, dy=V.y+t.my*V.k-sy, d=dx*dx+dy*dy; if(d<bd){bd=d;bi=t.i;} } return bi;
+}
+const ptr=new Map(); let dragMoved=0, pinch=0;
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId,{x:e.offsetX,y:e.offsetY,sx:e.offsetX,sy:e.offsetY}); dragMoved=0; pinch=0; });
+cv.addEventListener('pointermove',e=>{
+  const p=ptr.get(e.pointerId); if(!p) return;
+  const nx=e.offsetX, ny=e.offsetY;
+  if(ptr.size===2){
+    const [a,b]=[...ptr.values()]; const d0=Math.hypot(a.x-b.x,a.y-b.y); p.x=nx;p.y=ny; const d1=Math.hypot(a.x-b.x,a.y-b.y);
+    if(d0>0){ zoomAt(d1/d0,(a.x+b.x)/2,(a.y+b.y)/2); } dragMoved=99; pinch=1; return;
+  }
+  if(pinch) { p.x=nx;p.y=ny; return; }
+  V.x+=nx-p.x; V.y+=ny-p.y; dragMoved+=Math.abs(nx-p.x)+Math.abs(ny-p.y); p.x=nx;p.y=ny; clampView();
+});
+const up=e=>{ const p=ptr.get(e.pointerId); ptr.delete(e.pointerId); if(p&&dragMoved<8&&!pinch&&e.type==='pointerup') onTap(e.offsetX,e.offsetY); if(!ptr.size) pinch=0; };
+cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{ e.preventDefault(); zoomAt(e.deltaY<0?1.2:1/1.2,e.offsetX,e.offsetY); },{passive:false});
+$('zin').onclick=()=>zoomAt(1.5,CW/2,CH/2); $('zout').onclick=()=>zoomAt(1/1.5,CW/2,CH/2);
+$('zhome').onclick=()=>{ const m=T.find(t=>t.owner===S.me); if(m) focusOn(m.i); };
+window.addEventListener('resize',resize); if(window.ResizeObserver) new ResizeObserver(resize).observe(box);
+/* ===== ゲーム進行 ===== */
+const BT=[]; const EP=Date.UTC(1936,0,1); const END_DAY=Math.round((Date.UTC(2026,11,31)-EP)/864e5);
+const G={day:0,speed:0,acc:0,on:false,pairs:new Set(),peace:new Set(),log:[],rally:null,done:false};
+const FOCI=[
+  {id:'ind',name:'工業化',cost:70,text:'全工場 +20%'},
+  {id:'mob',name:'総動員',cost:50,text:'師団の生産 +25%'}
+];
+const pk=(a,b)=>a<b?a+'|'+b:b+'|'+a;
+const rnd=()=>.7+Math.random()*.6;
+const SEAK=new Set(SEA.map(([a,b])=>pk(K[a],K[b])));
+function atWar(a,b){
+  if(a===b) return false; const k=pk(a,b);
+  if(G.pairs.has(k)) return true; if(G.peace.has(k)) return false;
+  const x=C[a].side,y=C[b].side; return (x==='a'&&y==='x')||(x==='x'&&y==='a');
+}
+const evDay=([y,m,d])=>Math.round((Date.UTC(y,m-1,d)-EP)/864e5);
+const D39=Math.round((Date.UTC(1939,8,1)-EP)/864e5);
+const EVD=EV.map(e=>({day:evDay(e),cmd:e[3],text:e[4]}));
+function dateOf(d){ const dt=new Date(EP+d*864e5); return {y:dt.getUTCFullYear(),m:dt.getUTCMonth()+1,d:dt.getUTCDate()}; }
+const dstr=d=>{ const x=dateOf(d); return x.y+'年'+x.m+'月'+x.d+'日'; };
+function note(msg){ G.log.unshift({day:G.day,msg}); if(G.log.length>9) G.log.pop(); uiDirty=true; }
+function runCmd(s){
+  s.split(';').forEach(c=>{ const p=c.trim().split(' ');
+    if(p[0]==='pair'){ const k=pk(p[1],p[2]); if(p[3]==='1') G.pairs.add(k); else G.pairs.delete(k); }
+    else if(p[0]==='peace'){ const k=pk(p[1],p[2]); if(p[3]==='1') G.peace.add(k); else G.peace.delete(k); }
+    else if(p[0]==='side'){ C[p[1]].side=p[2]; }
+    else if(p[0]==='rename'){ C[p[1]].name=p[2]; }
+    else if(p[0]==='peaceall'){ G.pairs.clear(); G.peace.clear(); for(const id in C) C[id].side='n'; }
+    else if(p[0]==='own'){ const t=T[K[p[1]]]; t.owner=p[2]; if(C[p[2]]){ C[p[2]].alive=true; C[p[2]].had=true; } dirty=true; }
+  });
+  checkAlive();
+}
+function checkAlive(){
+  for(const id in C){ if(!C[id].alive) continue; if(!T.some(t=>t.owner===id)){ C[id].alive=false; if(C[id].had&&id!=='BAL'&&id!=='CZE'&&id!=='ALB') note(C[id].name+'が滅亡した。'); } }
+}
+const mine=cid=>T.filter(t=>t.owner===cid);
+const facOf=cid=>{ let f=0; for(const t of T) if(t.owner===cid) f+=t.ic*3; return Math.round(f*(C[cid].focus.ind?1.2:1)); };
+const enemyNb=(t)=>t.nb.filter(n=>atWar(t.owner,T[n].owner));
+
+function reset(me){
+  TD.forEach((d,i)=>{ const t=T[i]; t.owner=d[5]; t.troops=d[6]; t.ic=d[7]; t.fort=1; t.navy=Math.round(d[7]*.5+(d[6]>=8?1:0)); t.air=Math.round(d[7]*.6); });
+  CT.forEach(([id,,,side])=>{ const c=C[id]; c.side=side; c.alive=true; c.prod=Math.random()*20; c.pp=50; c.focus={}; c.had=T.some(t=>t.owner===id); c.res=50; c.stab=70; c.pres=10; c.routeMult=1; c.route='現体制を維持'; c.ptype='army'; c.arms=0; });
+  BT.length=0; G.pairs.clear(); G.peace.clear(); G.log=[]; G.day=0; G.acc=0; G.speed=0; G.done=false; G.rally=null; S.me=me; S.sel=null; S.tgt=null;
+  EVD.forEach(e=>{ e.done=false; });
+  runEvents(); dirty=true;
+}
+function runEvents(){
+  for(const e of EVD){ if(!e.done&&e.day<=G.day){ e.done=true; runCmd(e.cmd); note(e.text); } }
+}
+
+/* ----- 戦闘 ----- */
+function startBattle(srcI,tgtI,m,owner){
+  const s=T[srcI]; m=Math.min(m,s.troops-0.0); if(m<.5) return false;
+  s.troops-=m;
+  let b=BT.find(x=>x.src===srcI&&x.tgt===tgtI&&x.owner===owner);
+  if(b) b.att+=m; else BT.push({src:srcI,tgt:tgtI,att:m,att0:m,prog:0,owner});
+  return true;
+}
+function endBattle(b){ const i=BT.indexOf(b); if(i>=0) BT.splice(i,1); }
+function updateBattle(b){
+  const tg=T[b.tgt], sr=T[b.src];
+  if(tg.owner===b.owner){ if(sr.owner===b.owner) sr.troops+=b.att; endBattle(b); return; }
+  if(!atWar(b.owner,tg.owner)){ if(sr.owner===b.owner) sr.troops+=b.att; endBattle(b); return; }
+  const D=tg.troops;
+  const bo=(b.owner===S.me)?1:(b.owner==='GER'&&G.day<D39+900?1.5:b.owner==="JPN"&&G.day<D39+1400?1.35:1);
+  const sea=SEAK.has(pk(b.src,b.tgt)), sp=sea?(sr.navy>=2?1:.6):1;
+  const ca=C[b.owner], cd=C[tg.owner], ua=ca.arms>0, ud=cd.arms>0; if(ua) ca.arms=Math.max(0,ca.arms-.1); if(ud) cd.arms=Math.max(0,cd.arms-.1);
+  const dD=b.att*.08*rnd()*bo*(1+.04*Math.min(sr.air,12))*sp*(ua?1.25:1), dA=D*.065*tg.fort*rnd()*(1+.03*Math.min(tg.air,12)+(sea?.03*Math.min(tg.navy,10):0))*(ud?1.25:1);
+  tg.troops=Math.max(0,D-dD); b.att-=dA;
+  b.prog+=clamp(b.att/Math.max(.3,D)*7,1.5,16);
+  if(b.att<=.25){ endBattle(b); return; }
+  if(tg.troops<=.3||b.prog>=100){
+    const old=tg.owner; tg.owner=b.owner; tg.troops=Math.max(.5,b.att); tg.fort=1; tg.navy=Math.floor(tg.navy/2); tg.air=Math.floor(tg.air/2); dirty=true; endBattle(b);
+    BT.slice().forEach(x=>{ if(x.tgt===b.tgt&&x!==b){ if(T[x.src].owner===x.owner) T[x.src].troops+=x.att; endBattle(x); } });
+    if(b.owner===S.me){ C[S.me].pres+=1; C[S.me].stab=Math.min(100,C[S.me].stab+1); }
+    if(old===S.me){ C[S.me].stab=Math.max(0,C[S.me].stab-6); C[S.me].pres=Math.max(0,C[S.me].pres-2); }
+    if(b.owner===S.me||old===S.me) note((b.owner===S.me?'自軍が':C[b.owner].name+'軍が')+tg.name+(b.owner===S.me?'を占領した。':'を占領。'));
+    else if(Math.random()<.25) note(C[b.owner].name+'軍が'+tg.name+'を占領。');
+    checkAlive();
+  }
+}
+function declare(a,b){ const k=pk(a,b); G.peace.delete(k); if(!atWar(a,b)){ G.pairs.add(k); note(C[a].name+'が'+C[b].name+'に宣戦布告。'); } }
+
+/* ----- AI ----- */
+function frontScore(t){ let th=0; for(const n of enemyNb(t)) th=Math.max(th,T[n].troops); return th/(t.troops+1); }
+function deploy(cid){
+  const ms=mine(cid); if(!ms.length) return;
+  let t;
+  if(cid===S.me&&G.rally!=null&&T[G.rally].owner===cid) t=T[G.rally];
+  else{ const fr=ms.filter(x=>enemyNb(x).length); t=(fr.length?fr:ms).reduce((a,b)=>frontScore(b)>frontScore(a)||(!fr.length&&b.ic>a.ic)?b:a); }
+  const ty=cid===S.me?C[cid].ptype:(Math.random()<.7?'army':Math.random()<.6?'air':'navy');
+  if(ty==='navy') t.navy+=1; else if(ty==='air') t.air+=1; else t.troops+=1;
+}
+function aiAct(cid){
+  const ms=mine(cid); if(!ms.length) return;
+  if(G.day<D39+252&&C[cid].side==='a'&&cid!=='POL'&&cid!=='CHN') return; // まやかし戦争
+  const fr=ms.filter(t=>enemyNb(t).length); if(!fr.length) return;
+  let n=0;
+  fr.sort((a,b)=>b.troops-a.troops);
+  for(const t of fr){
+    if(n>=2) break; if(t.troops<3||BT.some(b=>b.src===t.i)) continue;
+    const ts=enemyNb(t).map(i=>T[i]).sort((a,b)=>a.troops-b.troops); const tg=ts[0];
+    const av=t.troops-1;
+    if(av>=tg.troops*.85+.3||(av>=tg.troops*.6&&Math.random()<.2)){ startBattle(t.i,tg.i,av,cid); n++; }
+  }
+  // 後方から前線へ移動
+  const dist=new Map(); const q=[]; fr.forEach(t=>{dist.set(t.i,0);q.push(t.i);});
+  while(q.length){ const i=q.shift(); for(const j of T[i].nb){ if(T[j].owner===cid&&!dist.has(j)){ dist.set(j,dist.get(i)+1); q.push(j); } } }
+  for(const t of ms){
+    if(enemyNb(t).length||t.troops<2||!dist.has(t.i)) continue;
+    let best=null; for(const j of t.nb){ if(T[j].owner===cid&&dist.has(j)&&dist.get(j)<dist.get(t.i)){ best=T[j]; break; } }
+    if(best){ best.troops+=t.troops-1; t.troops=1; }
+  }
+}
+
+/* ----- 1日の処理 ----- */
+const CIDS=Object.keys(C);
+function tick(){
+  G.day++;
+  CIDS.forEach((cid,ci)=>{
+    const c=C[cid]; if(!c.alive) return;
+    c.prod+=facOf(cid)*.5*(c.focus.mob?1.25:1)*(cid===S.me?c.routeMult*(c.stab<30?.7:1):1)*((cid!==S.me&&(cid==='GER'||cid==='JPN'||cid==='ITA'))?1.2:1); if(c.prod>=45){ c.prod-=45; deploy(cid); }
+    if(cid===S.me){ c.pp=Math.min(300,c.pp+1.2+c.pres/120); c.res=Math.min(500,c.res+facOf(cid)*.012); }
+    else if((G.day+ci)%3===0) { if(c.side==='n'&&!T.some(t=>t.owner===cid&&enemyNb(t).length)){ if(Math.random()<.04){ const ms=mine(cid); ms[Math.floor(Math.random()*ms.length)].troops+=1; } } else aiAct(cid); }
+  });
+  BT.slice().forEach(updateBattle);
+  runEvents(); yearly();
+  if(G.day%30===0) checkEnd();
+  if(G.day>=END_DAY) finish('end');
+  uiDirty=true;
+}
+function standings(){
+  const tot={}; T.forEach(t=>{ tot[t.owner]=(tot[t.owner]||0)+t.ic*3; });
+  const n={}; T.forEach(t=>{ n[t.owner]=(n[t.owner]||0)+1; });
+  const arr=Object.keys(tot).filter(k=>C[k].alive).map(k=>({id:k,fac:tot[k],n:n[k]})).sort((a,b)=>b.fac-a.fac||b.n-a.n);
+  return {arr,total:arr.reduce((s,x)=>s+x.fac,0)};
+}
+function checkEnd(){
+  if(!C[S.me].alive){ finish('lose'); return; }
+  const st=standings(), me=st.arr.find(x=>x.id===S.me);
+  if(me&&me.fac/st.total>=.4) finish('win');
+}
+
+/* ----- 年次・スポーツ ----- */
+const OLY=[[1936,'ベルリン','ドイツ'],[1948,'ロンドン','イギリス'],[1952,'ヘルシンキ','フィンランド'],[1956,'メルボルン','オーストラリア'],[1960,'ローマ','イタリア'],[1964,'東京','日本'],[1968,'メキシコシティ','メキシコ'],[1972,'ミュンヘン','ドイツ'],[1976,'モントリオール','カナダ'],[1980,'モスクワ','ロシア'],[1984,'ロサンゼルス','アメリカ'],[1988,'ソウル','韓国'],[1992,'バルセロナ','スペイン'],[1996,'アトランタ','アメリカ'],[2000,'シドニー','オーストラリア'],[2004,'アテネ','ギリシャ'],[2008,'北京','中華民国'],[2012,'ロンドン','イギリス'],[2016,'リオデジャネイロ','ブラジル'],[2021,'東京','日本'],[2024,'パリ','フランス']];
+const WCUP=[[1938,'フランス'],[1950,'ブラジル'],[1954,'スイス'],[1958,'スウェーデン'],[1962,'チリ'],[1966,'イギリス'],[1970,'メキシコ'],[1974,'ドイツ'],[1978,'アルゼンチン'],[1982,'スペイン'],[1986,'メキシコ'],[1990,'イタリア'],[1994,'アメリカ'],[1998,'フランス'],[2002,'日本・韓国'],[2006,'ドイツ'],[2010,'南アフリカ'],[2014,'ブラジル'],[2018,'ロシア'],[2022,'カタール'],[2026,'アメリカ・カナダ・メキシコ']];
+let sportNow='大会は年ごとに開催されます。';
+function hostBonus(country,label){
+  const me=C[S.me].name; if(country&&country.split('・').includes(me)){ C[S.me].pres+=4; C[S.me].stab=Math.min(100,C[S.me].stab+2); note(me+'が'+label+'を開催し、威信が高まる。'); }
+}
+function yearly(){
+  const d=dateOf(G.day); if(d.m===1&&d.d===1){
+    const me=C[S.me]; me.stab=clamp(me.stab+(me.stab<55?2:-1),0,100); if(me.stab<=10&&Math.random()<.5) note('国内の不満が高まっている。安定度を上げたい。');
+  }
+  if(d.m===7&&d.d===1&&d.y%4===0&&d.y>=1936){
+    const o=OLY.find(x=>x[0]===d.y||(d.y===2020&&x[0]===2021));
+    if(d.y===1940||d.y===1944){ sportNow=d.y+'年の夏季オリンピックは戦争のため中止された。'; note(sportNow); }
+    else if(o&&o[0]===d.y){ sportNow='夏季オリンピック('+o[1]+')'+(d.y>=1960?'とパラリンピック':'')+'が開催中。'; note('夏季オリンピック開催: '+o[1]); hostBonus(o[2],'夏季オリンピック'); }
+  }
+  if(d.m===7&&d.d===1&&d.y===2021){ sportNow='夏季オリンピック(東京)が開催中。'; note('夏季オリンピック開催: 東京(2020年大会の延期)'); hostBonus('日本','夏季オリンピック'); }
+  if(d.m===6&&d.d===11){
+    const w=WCUP.find(x=>x[0]===d.y);
+    if(w){ sportNow='FIFAワールドカップ('+w[1]+')が開催中。'; note('FIFAワールドカップ開催: '+w[1]); hostBonus(w[1],'ワールドカップ'); }
+    else if(d.y===1942||d.y===1946) note('FIFAワールドカップは戦争の影響で開かれなかった。');
+  }
+  if(d.m===8&&d.d===25&&d.y>=1950&&(d.y-1950)%4===0&&d.y<=2019) note('FIBAバスケットボールワールドカップが開催された。');
+}
+/* ===== 画面 ===== */
+let uiDirty=true, lastUI=0, lastSpeed=2;
+const SPD=[0,900,450,220,110,45];
+const esc=s=>String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+const FLAG={GER:'🇩🇪',ITA:'🇮🇹',JPN:'🇯🇵',UK:'🇬🇧',FRA:'🇫🇷',USSR:'🇷🇺',USA:'🇺🇸',CHN:'🇹🇼',CAN:'🇨🇦',AUS:'🇦🇺',NZL:'🇳🇿',SAF:'🇿🇦',POL:'🇵🇱',NLD:'🇳🇱',BEL:'🇧🇪',DNK:'🇩🇰',NOR:'🇳🇴',SWE:'🇸🇪',FIN:'🇫🇮',CHE:'🇨🇭',ESP:'🇪🇸',PRT:'🇵🇹',IRL:'🇮🇪',TUR:'🇹🇷',GRC:'🇬🇷',YUG:'🇷🇸',ROU:'🇷🇴',HUN:'🇭🇺',BGR:'🇧🇬',EGY:'🇪🇬',IRN:'🇮🇷',IRQ:'🇮🇶',SAU:'🇸🇦',AFG:'🇦🇫',THA:'🇹🇭',MNG:'🇲🇳',MEX:'🇲🇽',BRA:'🇧🇷',ARG:'🇦🇷',CHL:'🇨🇱',COL:'🇨🇴',PER:'🇵🇪',SRK:'🇨🇶',ETH:'🇪🇹',CZE:'🇨🇿',ALB:'🇦🇱',IND:'🇮🇳',PAK:'🇵🇰',KOR:'🇰🇷',ISR:'🇮🇱',IDN:'🇮🇩',PHL:'🇵🇭',MYS:'🇲🇾',VNM:'🇻🇳',MMR:'🇲🇲',LBY:'🇱🇾',SDN:'🇸🇩',ALG:'🇩🇿',NGA:'🇳🇬',KEN:'🇰🇪',MDG:'🇲🇬',COD:'🇨🇩',SYR:'🇸🇾',AGO:'🇦🇴',MOZ:'🇲🇿',ZWE:'🇿🇼',DDR:'🇩🇪',UKR:'🇺🇦',BLR:'🇧🇾',KAZ:'🇰🇿',CAF:'🇨🇫',CPV:'🇨🇻'};
+XT.forEach(x=>{ if(x[0].length===2&&!FLAG[x[0]]) FLAG[x[0]]=isoF(x[0]); });;
+const chip=id=>'<span class="dot" style="background:'+C[id].col+'"></span>'+(FLAG[id]?FLAG[id]+' ':'')+esc(C[id].name);
+const REL={me:['自国','me'],enemy:['交戦中','enemy'],ally:['同じ陣営','ally'],neutral:['平和',''] };
+function setSpeed(s){ if(!G.on||G.done) return; G.speed=s; if(s>0) lastSpeed=s; uiDirty=true; lastUI=0; }
+document.querySelectorAll('#speed .btn').forEach(b=>b.onclick=()=>setSpeed(+b.dataset.s));
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); setSpeed(G.speed>0?0:lastSpeed); }
+  else if(/^Digit[1-5]$/.test(e.code)) setSpeed(+e.code.slice(5));
+});
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&G.speed>0) setSpeed(0); });
+
+function onTap(sx,sy){
+  if(!G.on) return; const t=hit(sx,sy);
+  if(t<0){ S.sel=null; S.tgt=null; }
+  else if(S.sel!=null&&t!==S.sel&&T[S.sel].owner===S.me&&T[S.sel].nb.includes(t)) S.tgt=t;
+  else { S.sel=t; S.tgt=null; }
+  uiDirty=true; lastUI=0;
+}
+function relText(a,b){ const r=relOf(a,b); return '<span class="tag '+(r==='neutral'?'':r)+'">'+REL[r][0]+'</span>'; }
+function infoHTML(){
+  const me=C[S.me]; let h='';
+  const fociBtns=FOCI.map(f=>{ const done=me.focus[f.id]; return '<button class="btn" data-act="focus" data-id="'+f.id+'"'+((done||me.pp<f.cost)?' disabled':'')+' title="'+f.text+'">'+f.name+(done?'(済)':'('+f.cost+')')+'</button>'; }).join('')+'<span class="k" style="align-self:center">生産</span>'+[['army','陸軍'],['navy','海軍'],['air','空軍']].map(([k,n])=>'<button class="btn" data-act="ptype" data-id="'+k+'" type="button"'+(me.ptype===k?' style="border-color:var(--amber);color:var(--amber)"':'')+'>'+n+'</button>').join('');
+  if(S.sel==null){
+    const st=standings(); const r=st.arr.findIndex(x=>x.id===S.me)+1;
+    return '<h3>'+chip(S.me)+'</h3><div class="meta"><span>世界工業力の割合 <b>'+Math.round(100*facOf(S.me)/st.total)+'%</b></span><span>順位 <b>'+r+'位</b></span></div>'
+      +'<div class="note" style="color:var(--muted);font-size:12.5px">領土をタップして選択。自国領土を選ぶと隣接地が色分けされ、タップして進軍先を決められます。</div>'
+      +'<div class="k">国家方針(政治力)</div><div class="acts">'+fociBtns+'</div>';
+  }
+  const s=T[S.sel], own=s.owner===S.me;
+  h+='<h3>'+esc(s.name)+'</h3><div class="meta"><span>'+chip(s.owner)+'</span>'+relText(S.me,s.owner)
+    +'<span>師団 <b>'+Math.ceil(s.troops-.001)+'</b></span><span>工場 <b>'+Math.round(s.ic*3)+'</b></span><span>防御 <b>×'+s.fort.toFixed(1)+'</b></span><span>海軍 <b>'+Math.floor(s.navy)+'</b></span><span>空軍 <b>'+Math.floor(s.air)+'</b></span></div>';
+  if(!own&&C[s.owner].pl&&C[s.owner].alive) h+='<div class="acts"><button class="btn primary" data-act="play">'+esc(C[s.owner].name)+'を操作する</button></div>';
+  if(own){
+    h+='<div class="acts"><button class="btn'+(G.rally===s.i?' on':'')+'" data-act="rally">'+(G.rally===s.i?'配備先に指定済':'新師団の配備先にする')+'</button>'
+      +'<button class="btn" data-act="inv"'+(me.pp<10||me.res<5?' disabled':'')+'>工業投資(10・資源5)</button><button class="btn" data-act="fort"'+(me.pp<30||s.fort>=2?' disabled':'')+'>要塞化(30)</button></div>';
+  }
+  if(S.tgt!=null){
+    const g=T[S.tgt], tOwn=g.owner===S.me, war=atWar(S.me,g.owner), av=s.troops-1;
+    h+='<div class="tgt"><div class="meta"><span>▶ <b style="font-family:var(--f-body);font-size:15px">'+esc(g.name)+'</b></span><span>'+chip(g.owner)+'</span>'+relText(S.me,g.owner)+'<span>師団 <b>'+Math.ceil(g.troops-.001)+'</b></span></div>';
+    if(tOwn) h+='<div class="acts"><button class="btn" data-act="move" data-f="1"'+(av<1?' disabled':'')+'>全軍を再配置</button><button class="btn" data-act="move" data-f=".5"'+(av<2?' disabled':'')+'>半数を再配置</button></div>';
+    else{
+      const cost=war?0:40, can=av>=1&&me.pp>=cost;
+      const lbl=war?'進軍':'宣戦布告して進軍(政治力40)';
+      h+='<div class="meta"><span>戦力比 <b>'+(av/Math.max(.3,g.troops*g.fort)).toFixed(2)+'</b></span></div>'
+        +'<div class="acts"><button class="btn '+(war?'primary':'war')+'" data-act="atk" data-f="1"'+(can?'':' disabled')+'>'+lbl+'(全軍)</button>'
+        +'<button class="btn" data-act="atk" data-f=".5"'+(av<2||me.pp<cost?' disabled':'')+'>半数で'+(war?'進軍':'宣戦・進軍')+'</button></div>';
+    }
+    h+='</div>';
+  }
+  const bs=BT.filter(b=>b.owner===S.me&&(b.src===S.sel||b.tgt===S.sel||b.tgt===S.tgt));
+  if(bs.length){
+    h+='<div class="bt">'+bs.map(b=>'<div class="row"><span>'+esc(T[b.src].name)+' → '+esc(T[b.tgt].name)+'</span><span>'+Math.ceil(b.att)+'師団 / '+Math.floor(b.prog)+'%</span></div><span class="bar"><i style="width:'+Math.min(100,b.prog)+'%;background:var(--amber)"></i></span><div class="acts"><button class="btn" data-act="retreat" data-b="'+BT.indexOf(b)+'">撤退</button></div>').join('')+'</div>';
+  }
+  h+='<div class="acts">'+fociBtns+'</div>';
+  return h;
+}
+function milHTML(){
+  const me=C[S.me], ms=mine(S.me), out=BT.filter(b=>b.owner===S.me);
+  let a=0,nv=0,ai=0; ms.forEach(t=>{a+=t.troops;nv+=t.navy;ai+=t.air;});
+  const top=k=>ms.slice().sort((x,y)=>y[k]-x[k]).filter(t=>t[k]>=1).slice(0,3).map(t=>esc(t.name)+' <b>'+Math.floor(t[k])+'</b>').join(' / ')||'なし';
+  const pb=[['army','陸軍'],['navy','海軍'],['air','空軍']].map(([k,n])=>'<button class="btn" data-m="ptype" data-id="'+k+'" type="button"'+(me.ptype===k?' style="border-color:var(--amber);color:var(--amber)"':'')+'>'+n+'</button>').join('');
+  const ry=(G.rally!=null&&T[G.rally].owner===S.me);
+  return '<div class="stgrid"><div class="st">陸軍(師団)<b>'+Math.round(a)+'</b></div><div class="st">海軍<b>'+Math.floor(nv)+'</b></div><div class="st">空軍<b>'+Math.floor(ai)+'</b></div><div class="st">進軍中<b>'+out.length+'</b></div></div>'
+   +'<div class="k">生産する軍(生産バー '+Math.floor(me.prod/45*100)+'%)</div><div class="acts">'+pb+'</div>'
+   +'<div class="meta"><span>配備先: '+(ry?esc(T[G.rally].name):'自動(前線)')+'</span>'+(ry?'<button class="btn" data-m="rallyoff" type="button" style="min-height:26px;padding:1px 8px">解除</button>':'')+'</div>'
+   +'<div class="meta"><span>陸軍が多い領土: '+top('troops')+'</span></div>'
+   +'<div class="meta"><span>海軍が多い領土: '+top('navy')+'</span></div>'
+   +'<div class="meta"><span>空軍が多い領土: '+top('air')+'</span></div>'
+   +'<div class="meta"><span>武器の在庫 <b>'+Math.floor(me.arms)+'</b>(交戦時に自動で使用)</span></div>'
+   +'<div class="k">進軍中の部隊</div><div class="note" style="color:var(--text)">'+(out.length?out.map(b=>esc(T[b.src].name)+' → '+esc(T[b.tgt].name)+' '+Math.ceil(b.att)+'師団 / '+Math.floor(b.prog)+'%').join('<br>'):'なし')+'</div>'
+   +'<p class="note">空軍は攻撃力と防御力を高め、海軍は海を渡る進軍に必要です(2未満だと攻撃力が下がります)。</p>';
+}
+$('t-mil').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-m]'); if(!b||!G.on) return; const me=C[S.me];
+  if(b.dataset.m==='ptype'){ me.ptype=b.dataset.id; note('生産を'+({army:'陸軍',navy:'海軍',air:'空軍'})[me.ptype]+'に切り替えた。'); }
+  else if(b.dataset.m==='rallyoff') G.rally=null;
+  uiDirty=true; updateUI(true);
+});
+function updateUI(force){
+  const now=performance.now(); if(!force&&(!uiDirty||now-lastUI<250)) return; uiDirty=false; lastUI=now;
+  const me=C[S.me], d=dateOf(G.day);
+  $('date').textContent=d.y+'.'+String(d.m).padStart(2,'0')+'.'+String(d.d).padStart(2,'0');
+  $('me').innerHTML=chip(S.me); $('pp').textContent=Math.floor(me.pp); $('fac').textContent=facOf(S.me);
+  let dv=0,n=0; for(const t of T) if(t.owner===S.me){dv+=t.troops;n++;} for(const b of BT) if(b.owner===S.me) dv+=b.att;
+  $('div').textContent=Math.round(dv); let nv=0,ai=0; for(const t of T) if(t.owner===S.me){nv+=t.navy;ai+=t.air;} $('nvy').textContent=Math.floor(nv); $('air').textContent=Math.floor(ai); $('arms').textContent=Math.floor(me.arms); $('nTer').textContent=n; $('prod').style.width=Math.min(100,me.prod/45*100)+'%';
+  document.querySelectorAll('#speed .btn[data-s]').forEach(b=>b.classList.toggle('on',+b.dataset.s===G.speed));
+  $('stgrid').innerHTML='<div class="st">資源<b>'+Math.floor(me.res)+'</b></div><div class="st">安定度<b>'+Math.round(me.stab)+'%</b></div><div class="st">威信<b>'+me.pres+'</b></div><div class="st">体制<b style="font-size:12px;font-family:var(--f-body)">'+esc(me.route)+'</b></div>';
+  $('sportInfo').textContent=sportNow;
+  $('info').innerHTML=infoHTML();
+  if(!$('t-mil').hidden) $('t-mil').innerHTML=milHTML();
+  $('news').innerHTML=G.log.map(l=>{ const x=dateOf(l.day); return '<li><b>'+x.y+'.'+x.m+'.'+x.d+'</b> '+esc(l.msg)+'</li>'; }).join('');
+}
+$('info').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]'); if(!b||b.disabled) return; const a=b.dataset.act, me=C[S.me];
+  if(a==='play'){ switchTo(T[S.sel].owner); return; }
+  if(a==='rally') G.rally=S.sel;
+  else if(a==='ptype'){ me.ptype=b.dataset.id; note('生産を'+({army:'陸軍',navy:'海軍',air:'空軍'})[me.ptype]+'に切り替えた。'); }
+  else if(a==='inv'){ me.pp-=10; me.res-=5; T[S.sel].ic+=1; note(T[S.sel].name+'に工業投資。工場が増えた。'); }
+  else if(a==='fort'){ me.pp-=30; T[S.sel].fort=Math.min(2,T[S.sel].fort+.4); note(T[S.sel].name+'を要塞化した。'); }
+  else if(a==='focus'){ const f=FOCI.find(x=>x.id===b.dataset.id); if(me.pp>=f.cost&&!me.focus[f.id]){ me.pp-=f.cost; me.focus[f.id]=1; note('国家方針「'+f.name+'」を完了。'+f.text); } }
+  else if(a==='move'){ const s=T[S.sel],g=T[S.tgt],f=+b.dataset.f, m=Math.floor((s.troops-1)*f*100)/100; if(m>0){ s.troops-=m; g.troops+=m; } }
+  else if(a==='atk'){
+    const s=T[S.sel],g=T[S.tgt],f=+b.dataset.f; if(!atWar(S.me,g.owner)){ if(me.pp<40) return; me.pp-=40; declare(S.me,g.owner); }
+    const m=Math.max(1,Math.floor((s.troops-1)*f)); startBattle(s.i,g.i,m,S.me);
+    if(G.speed===0) setSpeed(lastSpeed||2);
+  }
+  else if(a==='retreat'){ const bb=BT[+b.dataset.b]; if(bb){ T[bb.src].troops+=bb.att; endBattle(bb); } }
+  uiDirty=true; lastUI=0; updateUI(true);
+});
+
+/* ----- 開始・終了 ----- */
+const MAJOR=['GER','ITA','JPN','UK','FRA','USSR','USA','CHN','BGR'];
+function pickBtn(id){ return '<button class="btn pick" data-id="'+id+'" type="button">'+chip(id)+'</button>'; }
+$('picksMajor').innerHTML=MAJOR.map(pickBtn).join('');
+$('picksMinor').innerHTML=CT.filter(c=>c[4]&&!MAJOR.includes(c[0])).map(c=>pickBtn(c[0])).join('');
+document.querySelectorAll('.pick').forEach(b=>b.onclick=()=>{ if(G.on&&!G.done) switchTo(b.dataset.id); else startGame(b.dataset.id); });
+function switchTo(id){
+  S.me=id; S.sel=null; S.tgt=null; G.rally=null; $('vStart').hidden=true; $('cancelPick').hidden=true;
+  const m=T.find(t=>t.owner===id); if(m){ focusOn(m.i); S.sel=m.i; }
+  note('操作する国を'+C[id].name+'に変更。'); uiDirty=true; updateUI(true);
+}
+$('chg').onclick=()=>{ if(!G.on) return; setSpeed(0); $('cancelPick').hidden=false; $('vStart').hidden=false; };
+$('cancelPick').onclick=()=>{ $('vStart').hidden=true; };
+function startGame(id){
+  reset(id); G.on=true; $('vStart').hidden=true; $('vEnd').hidden=true;
+  resize(); const m=T.find(t=>t.owner===id); focusOn(m.i); S.sel=m.i;
+  uiDirty=true; updateUI(true); setSpeed(2);
+}
+function finish(kind){
+  if(G.done) return; G.done=true; G.speed=0; const st=standings(), r=st.arr.findIndex(x=>x.id===S.me)+1;
+  const t={win:['勝利','あなたの国は世界の工業力の4割を握り、戦後の覇権を手にした。'],lose:['敗北',C[S.me].name+'は全ての領土を失い、地図から消えた。'],
+    end:['2026年の世界','2026年末。'+(r===1?'あなたの国は世界最大の工業力を持つ国になった。':'あなたの国は工業力で第'+r+'位の国になった。')]}[kind];
+  $('endKicker').textContent=dstr(G.day); $('endTitle').textContent=t[0]; $('endTitle').className=kind==='win'?'new':''; $('endText').textContent=t[1];
+  $('rank').innerHTML=st.arr.slice(0,8).map((x,i)=>'<li class="'+(x.id===S.me?'me':'')+'"><span class="s">'+(i+1)+'</span><span class="n">'+chip(x.id)+'</span><span class="s">工場 '+Math.round(x.fac)+' / '+x.n+'領土</span></li>').join('');
+  $('vEnd').hidden=false; uiDirty=true;
+}
+$('again').onclick=()=>{ $('vEnd').hidden=true; $('vStart').hidden=false; G.on=false; };
+
+/* ----- ループ ----- */
+let last=performance.now();
+function loop(ts){
+  const dt=Math.min(100,ts-last); last=ts;
+  if(G.on&&!G.done&&G.speed>0){ G.acc+=dt; const iv=SPD[G.speed]; let n=0; while(G.acc>=iv&&n<8){ tick(); G.acc-=iv; n++; if(G.done) break; } if(n>=8) G.acc=0; }
+  draw(); if(G.on) updateUI(false);
+  requestAnimationFrame(loop);
+}
+resize(); fitView(); requestAnimationFrame(loop);
+window.__dbg={T,C,G,BT,tick,startGame,standings,jump,END_DAY,finish,focusOn,K};
+
+/* ----- タブ・政治・外交・スポーツ・ジャンプ ----- */
+document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('on',x===b));
+  ['news','pol','dip','spt','mil'].forEach(n=>$('t-'+n).hidden=(n!==b.dataset.tab));
+  if(G.on){ uiDirty=true; updateUI(true); }
+});
+function jump(n){ if(!G.on||G.done) return; for(let i=0;i<n&&!G.done;i++) tick(); uiDirty=true; updateUI(true); }
+$('j30').onclick=()=>jump(30); $('j365').onclick=()=>jump(365);
+const ROUTES={'現体制を維持':[1,0,0],'民主化・議会勢力':[.95,8,3],'軍部・権威主義勢力':[1.15,-8,0],'立憲君主制への移行':[1,3,2],'共和制への移行':[1,0,2],'自治拡大・独立運動':[.95,-3,3],'内戦・政権交代(IF)':[.8,-15,0]};
+$('applyRoute').onclick=()=>{
+  const me=C[S.me], r=$('route').value; if(me.pp<20){ note('政治力が足りない。'); return; } me.pp-=20;
+  const [m,st,pr]=ROUTES[r]; me.routeMult=m; me.route=r; me.stab=clamp(me.stab+st-4,0,100); me.pres+=pr;
+  note('政治ルートを「'+r+'」に変更(IF分岐として記録)。'); uiDirty=true; updateUI(true);
+};
+const tgtCountry=()=>S.sel==null?null:T[S.sel].owner;
+function dip(fn){ const me=C[S.me], c=tgtCountry(); if(!G.on||G.done) return; fn(me,c); uiDirty=true; updateUI(true); }
+$('dAlly').onclick=()=>dip((me,c)=>{ if(!c||c===S.me){ note('相手の国の領土を選んでください。'); return; } if(atWar(S.me,c)){ note(C[c].name+'とは交戦中。'); return; } if(me.pp<8){ note('政治力が足りない。'); return; } me.pp-=8; me.pres+=2; note(C[c].name+'と友好協定を結んだ。威信が上がる。'); });
+$('dTrade').onclick=()=>dip((me)=>{ me.res=Math.min(500,me.res+8); note('貿易協定で資源を獲得した。'); });
+$('dNeutral').onclick=()=>dip((me)=>{ if(me.side==='n'){ note('すでに中立です。'); return; } me.side='n'; me.stab=Math.min(100,me.stab+2); note(me.name+'が中立を宣言した。'); });
+$('dAid').onclick=()=>dip((me,c)=>{ if(!c||c===S.me){ note('支援する国の領土を選んでください。'); return; } if(me.res<8){ note('資源が足りない。'); return; } me.res-=8; T[S.sel].troops+=2; me.pres+=1; note(C[c].name+'の'+T[S.sel].name+'へ支援部隊を送った。'); });
+$('dBuy').onclick=()=>dip((me,c)=>{ if(!c||c===S.me){ note('武器を売ってくれる国の領土を選んでください。'); return; } if(atWar(S.me,c)){ note(C[c].name+'とは交戦中で、武器を買えない。'); return; } if(facOf(c)<6){ note(C[c].name+'は工業力が低く、武器を売れない。'); return; } if(me.res<8){ note('資源が足りない。'); return; } me.res-=8; me.arms+=5; note(C[c].name+'から武器を5単位購入した。交戦時に使用される。'); });
+$('bid').onclick=()=>dip((me)=>{ if(me.pp<10){ note('政治力が足りない。'); return; } me.pp-=10; me.pres+=3; note('国際大会の開催に立候補した。'); });
+})();
+</script>
+
+</body></html>
